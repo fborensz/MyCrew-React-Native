@@ -10,9 +10,15 @@ export class SampleDataService {
     
     // Check if we already have contacts
     const contactCount = await db.getContactCount();
-    if (contactCount > 0) {
-      console.log('Database already has contacts, skipping seed');
+    if (contactCount >= 20) {
+      console.log('Database already has 20+ contacts, skipping seed');
       return;
+    }
+    
+    // If we have some contacts but not 20, clear and re-seed to ensure consistency
+    if (contactCount > 0) {
+      console.log(`Database has ${contactCount} contacts, clearing to re-seed with all 20`);
+      await db.clearAllContacts();
     }
 
     console.log('Seeding database with sample data...');
@@ -194,6 +200,243 @@ export class SampleDataService {
             hasVehicle: false,
             isHoused: false,
             isPrimary: false
+          }
+        ]
+      },
+      {
+        name: 'Anaïs Rousseau',
+        jobTitle: 'Script',
+        phone: '+33 6 87 65 43 21',
+        email: 'anais.rousseau@script.fr',
+        notes: 'Précise et organisée. Expérience séries TV.',
+        isFavorite: false,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Bretagne',
+            isLocalResident: true,
+            hasVehicle: false,
+            isHoused: false,
+            isPrimary: true
+          }
+        ]
+      },
+      {
+        name: 'Benoît Fournier',
+        jobTitle: 'Cadreur',
+        phone: '+33 6 11 22 33 44',
+        email: 'benoit.fournier@cadrage.fr',
+        notes: 'Steadicam et drone. Très mobile.',
+        isFavorite: true,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Normandie',
+            isLocalResident: true,
+            hasVehicle: true,
+            isHoused: true,
+            isPrimary: true
+          }
+        ]
+      },
+      {
+        name: 'Clara Mercier',
+        jobTitle: 'Maquilleuse',
+        phone: '+33 6 55 66 77 88',
+        email: 'clara.mercier@maquillage.fr',
+        notes: 'Spécialiste FX et beauté. Portfolio sur demande.',
+        isFavorite: false,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Île-de-France',
+            isLocalResident: true,
+            hasVehicle: false,
+            isHoused: false,
+            isPrimary: true
+          }
+        ]
+      },
+      {
+        name: 'David Leroy',
+        jobTitle: 'Producteur',
+        phone: '+33 6 99 88 77 66',
+        email: 'david.leroy@prod.fr',
+        notes: 'Films et documentaires. Réseau international.',
+        isFavorite: true,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Île-de-France',
+            isLocalResident: true,
+            hasVehicle: true,
+            isHoused: false,
+            isPrimary: true
+          },
+          {
+            id: '',
+            country: 'Canada',
+            region: 'Québec',
+            isLocalResident: false,
+            hasVehicle: false,
+            isHoused: true,
+            isPrimary: false
+          }
+        ]
+      },
+      {
+        name: 'Élodie Simon',
+        jobTitle: 'Costumière',
+        phone: '+33 6 22 33 44 55',
+        email: 'elodie.simon@costume.fr',
+        notes: 'Créations originales et costumes d\'époque.',
+        isFavorite: false,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Grand Est',
+            isLocalResident: true,
+            hasVehicle: true,
+            isHoused: false,
+            isPrimary: true
+          }
+        ]
+      },
+      {
+        name: 'Fabien Durand',
+        jobTitle: 'Chef Machiniste',
+        phone: '+33 6 33 44 55 66',
+        email: 'fabien.durand@machinisme.fr',
+        notes: 'Grue et travelling. Équipe expérimentée.',
+        isFavorite: false,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Hauts-de-France',
+            isLocalResident: true,
+            hasVehicle: true,
+            isHoused: true,
+            isPrimary: true
+          }
+        ]
+      },
+      {
+        name: 'Gabrielle Moreau',
+        jobTitle: 'Assistante Réalisatrice',
+        phone: '+33 6 44 55 66 77',
+        email: 'gabrielle.moreau@assist.fr',
+        notes: 'Bilingue anglais-français. Tournages internationaux.',
+        isFavorite: true,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Provence-Alpes-Côte d\'Azur',
+            isLocalResident: true,
+            hasVehicle: true,
+            isHoused: false,
+            isPrimary: true
+          }
+        ]
+      },
+      {
+        name: 'Hugo Lemaire',
+        jobTitle: 'Directeur Photo',
+        phone: '+33 6 66 77 88 99',
+        email: 'hugo.lemaire@photo.fr',
+        notes: 'Spécialiste documentaires nature. Matériel 4K.',
+        isFavorite: false,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Auvergne-Rhône-Alpes',
+            isLocalResident: true,
+            hasVehicle: true,
+            isHoused: true,
+            isPrimary: true
+          }
+        ]
+      },
+      {
+        name: 'Inès Fabre',
+        jobTitle: 'Réalisatrice',
+        phone: '+33 6 77 88 99 00',
+        email: 'ines.fabre@real.fr',
+        notes: 'Courts-métrages primés. Style artistique unique.',
+        isFavorite: false,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Occitanie',
+            isLocalResident: true,
+            hasVehicle: false,
+            isHoused: false,
+            isPrimary: true
+          }
+        ]
+      },
+      {
+        name: 'Julien Barbier',
+        jobTitle: 'Perchman',
+        phone: '+33 6 88 99 00 11',
+        email: 'julien.barbier@son.fr',
+        notes: 'Son direct professionnel. Matériel Sennheiser.',
+        isFavorite: false,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Centre-Val de Loire',
+            isLocalResident: true,
+            hasVehicle: true,
+            isHoused: true,
+            isPrimary: true
+          }
+        ]
+      },
+      {
+        name: 'Karine Vidal',
+        jobTitle: 'Monteuse Son',
+        phone: '+33 6 00 11 22 33',
+        email: 'karine.vidal@postprod.fr',
+        notes: 'Pro Tools expert. Studio équipé.',
+        isFavorite: true,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Île-de-France',
+            isLocalResident: true,
+            hasVehicle: false,
+            isHoused: false,
+            isPrimary: true
+          }
+        ]
+      },
+      {
+        name: 'Laurent Carre',
+        jobTitle: 'Étalonneur',
+        phone: '+33 6 11 00 99 88',
+        email: 'laurent.carre@color.fr',
+        notes: 'DaVinci Resolve Studio. Look créatif.',
+        isFavorite: false,
+        locations: [
+          {
+            id: '',
+            country: 'France',
+            region: 'Pays de la Loire',
+            isLocalResident: true,
+            hasVehicle: true,
+            isHoused: false,
+            isPrimary: true
           }
         ]
       }

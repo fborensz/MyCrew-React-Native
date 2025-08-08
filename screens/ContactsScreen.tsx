@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
-  FlatList,
+  SectionList,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -82,7 +82,7 @@ function ContactRow({ contact, onPress, onQRPress }: ContactRowProps) {
   return (
     <TouchableOpacity style={styles.contactRow} onPress={onPress}>
       <View style={styles.contactInfo}>
-        <View style={styles.nameRow}>
+        <View style={styles.nameContainer}>
           <Text style={styles.contactName} numberOfLines={1}>
             {contact.name}
           </Text>
@@ -130,6 +130,7 @@ function ProfileCard({ profile, onPress, onQRPress }: ProfileCardProps) {
   if (!profile) {
     return (
       <TouchableOpacity style={styles.profileCard} onPress={onPress}>
+        <Ionicons name="person" size={32} color={MyCrewColors.background} style={styles.profileIcon} />
         <View style={styles.profileContent}>
           <Text style={styles.profileEmpty}>Créer mon profil</Text>
         </View>
@@ -142,6 +143,7 @@ function ProfileCard({ profile, onPress, onQRPress }: ProfileCardProps) {
 
   return (
     <TouchableOpacity style={styles.profileCard} onPress={onPress}>
+      <Ionicons name="person" size={32} color={MyCrewColors.background} style={styles.profileIcon} />
       <View style={styles.profileContent}>
         <Text style={styles.profileName}>{profile.name}</Text>
         <Text style={styles.profileJob}>{profile.jobTitle}</Text>
@@ -157,9 +159,13 @@ interface QRModalProps {
   visible: boolean;
   onClose: () => void;
   profile: UserProfile | null;
+  contact: Contact | null;
 }
 
-function QRModal({ visible, onClose, profile }: QRModalProps) {
+function QRModal({ visible, onClose, profile, contact }: QRModalProps) {
+  const displayData = contact || profile;
+  const title = contact ? 'QR Code Contact' : 'Mon QR Code';
+  
   return (
     <Modal
       visible={visible}
@@ -171,7 +177,7 @@ function QRModal({ visible, onClose, profile }: QRModalProps) {
         <TouchableOpacity style={styles.modalBackground} onPress={onClose} />
         <View style={styles.qrModalContent}>
           <View style={styles.qrModalHeader}>
-            <Text style={styles.qrModalTitle}>Mon QR Code</Text>
+            <Text style={styles.qrModalTitle}>{title}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
             </TouchableOpacity>
@@ -184,10 +190,10 @@ function QRModal({ visible, onClose, profile }: QRModalProps) {
             </View>
           </View>
           
-          {profile && (
+          {displayData && (
             <View style={styles.qrModalInfo}>
-              <Text style={styles.qrModalName}>{profile.name}</Text>
-              <Text style={styles.qrModalJob}>{profile.jobTitle}</Text>
+              <Text style={styles.qrModalName}>{displayData.name}</Text>
+              <Text style={styles.qrModalJob}>{displayData.jobTitle}</Text>
             </View>
           )}
         </View>
@@ -205,12 +211,18 @@ export default function ContactsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   
   // Animation pour le bouton paramètres
   const scrollY = useRef(new Animated.Value(0)).current;
   const settingsButtonScale = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [1, 0.8, 0.5],
+    extrapolate: 'clamp',
+  });
+  const settingsButtonOpacity = scrollY.interpolate({
     inputRange: [0, 50],
-    outputRange: [1, 0.5],
+    outputRange: [1, 0.7],
     extrapolate: 'clamp',
   });
 
@@ -272,7 +284,8 @@ export default function ContactsScreen() {
   };
 
   const handleContactQRPress = (contact: Contact) => {
-    navigation.navigate('QRCodeDisplay' as never, { contact } as never);
+    setSelectedContact(contact);
+    setShowQRModal(true);
   };
 
   const handleProfilePress = () => {
@@ -285,6 +298,7 @@ export default function ContactsScreen() {
 
   const handleProfileQRPress = () => {
     if (profile) {
+      setSelectedContact(null); // Reset selected contact
       setShowQRModal(true);
     } else {
       Alert.alert('Aucun profil', 'Créez d\'abord votre profil pour générer un QR code.');
@@ -294,6 +308,32 @@ export default function ContactsScreen() {
   const handleSettingsPress = () => {
     navigation.navigate('Settings' as never);
   };
+
+  // Group contacts by first letter
+  const groupContactsByLetter = (contacts: Contact[]) => {
+    const grouped = contacts.reduce((acc, contact) => {
+      const firstLetter = contact.name.charAt(0).toUpperCase();
+      if (!acc[firstLetter]) {
+        acc[firstLetter] = [];
+      }
+      acc[firstLetter].push(contact);
+      return acc;
+    }, {} as Record<string, Contact[]>);
+
+    // Sort letters and return sections
+    return Object.keys(grouped).sort().map(letter => ({
+      letter,
+      data: grouped[letter].sort((a, b) => a.name.localeCompare(b.name))
+    }));
+  };
+
+  const contactSections = groupContactsByLetter(filteredContacts);
+
+  const renderSectionHeader = ({ section }: { section: { letter: string } }) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionHeaderText}>{section.letter}</Text>
+    </View>
+  );
 
   const renderContact = ({ item }: { item: Contact }) => (
     <ContactRow
@@ -353,16 +393,14 @@ export default function ContactsScreen() {
       <View style={styles.titleContainer}>
         <View style={styles.logoContainer}>
           <Image source={require('../assets/images/logo.png')} style={styles.logoImage} />
-          <View style={styles.titleTextContainer}>
-            <Text style={styles.logoText}>MyCrew</Text>
-            <Text style={styles.tagline}>Trouvez, contactez, tournez</Text>
-          </View>
+          <Text style={styles.tagline}>Trouvez, contactez, tournez</Text>
         </View>
       </View>
 
-      <FlatList
-        data={filteredContacts}
+      <SectionList
+        sections={contactSections}
         renderItem={renderContact}
+        renderSectionHeader={renderSectionHeader}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={ListHeaderComponent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -373,12 +411,16 @@ export default function ContactsScreen() {
           { useNativeDriver: false }
         )}
         scrollEventThrottle={16}
+        stickySectionHeadersEnabled={true}
       />
 
       {/* Bouton paramètres flottant */}
       <Animated.View style={[
         styles.settingsButton,
-        { transform: [{ scale: settingsButtonScale }] }
+        { 
+          transform: [{ scale: settingsButtonScale }],
+          opacity: settingsButtonOpacity
+        }
       ]}>
         <TouchableOpacity
           style={styles.settingsButtonInner}
@@ -391,8 +433,12 @@ export default function ContactsScreen() {
       {/* Modal QR Code */}
       <QRModal
         visible={showQRModal}
-        onClose={() => setShowQRModal(false)}
+        onClose={() => {
+          setShowQRModal(false);
+          setSelectedContact(null);
+        }}
         profile={profile}
+        contact={selectedContact}
       />
     </SafeAreaView>
   );
@@ -413,22 +459,15 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   logoImage: {
-    width: 32,
-    height: 32,
+    width: 80,
+    height: 80,
     resizeMode: 'contain',
   },
-  titleTextContainer: {
-    flexDirection: 'column',
-  },
-  logoText: {
-    fontSize: Typography.largeTitle,
-    fontWeight: '700',
-    color: MyCrewColors.textPrimary,
-  },
   tagline: {
-    fontSize: Typography.small,
+    fontSize: Typography.subheadline,
     color: MyCrewColors.textSecondary,
     fontStyle: 'italic',
+    marginLeft: Spacing.md,
   },
   listContent: {
     paddingBottom: 100, // Espace pour le bouton flottant
@@ -437,12 +476,16 @@ const styles = StyleSheet.create({
   // Encart de profil
   profileCard: {
     backgroundColor: MyCrewColors.accent,
-    margin: Spacing.lg,
+    marginHorizontal: Spacing.sm,
+    marginVertical: Spacing.xs,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
+    padding: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     ...Shadows.medium,
+  },
+  profileIcon: {
+    marginRight: Spacing.md,
   },
   profileContent: {
     flex: 1,
@@ -523,16 +566,16 @@ const styles = StyleSheet.create({
   contactInfo: {
     flex: 1,
   },
-  nameRow: {
+  nameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     marginBottom: Spacing.xs,
   },
   contactName: {
     fontSize: Typography.subheadline,
     fontWeight: '600',
     color: MyCrewColors.textPrimary,
-    flex: 1,
   },
   favoriteIcon: {
     marginLeft: Spacing.xs,
@@ -633,5 +676,17 @@ const styles = StyleSheet.create({
   qrModalJob: {
     fontSize: Typography.body,
     color: MyCrewColors.textSecondary,
+  },
+  
+  // Section headers
+  sectionHeader: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xs,
+  },
+  sectionHeaderText: {
+    fontSize: Typography.small,
+    fontWeight: '600',
+    color: MyCrewColors.iconMuted,
+    letterSpacing: 1,
   },
 });

@@ -397,6 +397,17 @@ export class DatabaseService {
     return result?.count || 0;
   }
 
+  async clearAllContacts(): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.withTransactionAsync(async () => {
+      await this.db!.runAsync('DELETE FROM work_locations');
+      await this.db!.runAsync('DELETE FROM contacts');
+    });
+
+    console.log('All contacts cleared successfully');
+  }
+
   async getFavoriteContacts(): Promise<Contact[]> {
     if (!this.db) throw new Error('Database not initialized');
 
