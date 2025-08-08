@@ -11,7 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MyCrewColors } from '../constants/Colors';
 import { ExportService, ExportFormat } from '../services/ExportService';
-import DatabaseService from '../services/DatabaseService';
+import { DatabaseService } from '../services/DatabaseService';
 
 const Spacing = {
   xs: 4,
@@ -72,7 +72,8 @@ export default function ExportOptionsScreen() {
 
   const loadStats = async () => {
     try {
-      const contacts = await DatabaseService.getAllContacts();
+      const db = DatabaseService.getInstance();
+      const contacts = await db.getAllContacts();
       const exportStats = ExportService.getExportStats(contacts);
       setStats(exportStats);
     } catch (error) {
@@ -86,7 +87,8 @@ export default function ExportOptionsScreen() {
     setIsExporting(true);
     
     try {
-      const contacts = await DatabaseService.getAllContacts();
+      const db = DatabaseService.getInstance();
+      const contacts = await db.getAllContacts();
       
       if (contacts.length === 0) {
         Alert.alert(

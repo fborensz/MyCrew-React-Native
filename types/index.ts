@@ -124,7 +124,7 @@ export interface ImportResult {
 
 // Navigation types
 export type RootStackParamList = {
-  MainTabs: undefined;
+  Contacts: undefined;
   ContactDetail: { contactId: string };
   AddContact: undefined;
   EditContact: { contactId: string };
@@ -134,15 +134,11 @@ export type RootStackParamList = {
     profile?: UserProfile;
     qrData?: any;
   };
+  Profile: undefined;
   UserProfileEditor: undefined;
+  Settings: undefined;
   ExportOptions: undefined;
   ImportOptions: undefined;
-};
-
-export type TabParamList = {
-  Contacts: undefined;
-  Profile: undefined;
-  Settings: undefined;
 };
 
 // Form validation types

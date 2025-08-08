@@ -187,3 +187,9 @@ export class JobTitles {
     };
   }
 }
+
+// Export compatible avec l'ancien format pour les écrans
+export const FILM_DEPARTMENTS: Department[] = Object.keys(JobTitles.departments).map(name => ({
+  name,
+  jobs: JobTitles.departments[name]
+}));

@@ -108,9 +108,8 @@ export const userProfileValidationSchema = yup.object().shape({
     .array()
     .of(
       yup.object().shape({
-        id: yup.string().required(),
         country: yup.string().required('Le pays est obligatoire'),
-        region: yup.string().required('La région est obligatoire'),
+        region: yup.string().nullable(),
         isLocalResident: yup.boolean().required(),
         hasVehicle: yup.boolean().required(),
         isHoused: yup.boolean().required(),

@@ -28,6 +28,23 @@ export class DatabaseService {
     }
   }
 
+  async resetDatabase(): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    
+    try {
+      await this.db.execAsync('DROP TABLE IF EXISTS work_locations');
+      await this.db.execAsync('DROP TABLE IF EXISTS contacts');
+      await this.db.execAsync('DROP TABLE IF EXISTS user_profile');
+      await this.db.execAsync('DROP TABLE IF EXISTS user_profile_locations');
+      
+      await this.createTables();
+      console.log('Database reset successfully');
+    } catch (error) {
+      console.error('Database reset failed:', error);
+      throw error;
+    }
+  }
+
   private async createTables(): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
@@ -106,8 +123,8 @@ export class DatabaseService {
     await this.db.withTransactionAsync(async () => {
       // Insert contact
       await this.db!.runAsync(
-        `INSERT INTO contacts (id, name, jobTitle, phone, email, notes, isFavorite)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO contacts (id, name, jobTitle, phone, email, notes, isFavorite, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         [contactId, contact.name, contact.jobTitle, contact.phone, contact.email, 
          contact.notes, contact.isFavorite ? 1 : 0]
       );
@@ -197,6 +214,36 @@ export class DatabaseService {
     });
   }
 
+  async updateContact(contactId: string, contact: Omit<Contact, 'id'>): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.withTransactionAsync(async () => {
+      // Update contact
+      await this.db!.runAsync(
+        `UPDATE contacts 
+         SET name = ?, jobTitle = ?, phone = ?, email = ?, notes = ?, isFavorite = ?, updatedAt = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [contact.name, contact.jobTitle, contact.phone, contact.email, 
+         contact.notes, contact.isFavorite ? 1 : 0, contactId]
+      );
+
+      // Delete existing work locations
+      await this.db!.runAsync('DELETE FROM work_locations WHERE contactId = ?', [contactId]);
+
+      // Insert updated work locations
+      for (const location of contact.locations) {
+        const locationId = `location_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        await this.db!.runAsync(
+          `INSERT INTO work_locations (id, contactId, country, region, isLocalResident, hasVehicle, isHoused, isPrimary)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [locationId, contactId, location.country, location.region || null,
+           location.isLocalResident ? 1 : 0, location.hasVehicle ? 1 : 0,
+           location.isHoused ? 1 : 0, location.isPrimary ? 1 : 0]
+        );
+      }
+    });
+  }
+
   async deleteContact(contactId: string): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
@@ -230,6 +277,24 @@ export class DatabaseService {
     }
 
     return contacts;
+  }
+
+  async findContactByNameAndPhone(name: string, phone: string): Promise<Contact | null> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const contactRow = await this.db.getFirstAsync<ContactRow>(
+      'SELECT * FROM contacts WHERE name = ? AND phone = ?',
+      [name, phone]
+    );
+
+    if (!contactRow) return null;
+
+    const locationRows = await this.db.getAllAsync<WorkLocationRow>(
+      'SELECT * FROM work_locations WHERE contactId = ?',
+      [contactRow.id]
+    );
+
+    return this.mapToContact(contactRow, locationRows);
   }
 
   // User Profile operations

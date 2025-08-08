@@ -3,7 +3,7 @@
 
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import DatabaseService, { Contact, WorkLocation } from './DatabaseService';
+import { DatabaseService, Contact, WorkLocation } from './DatabaseService';
 import { ExportContact } from './ExportService';
 
 export interface ImportResult {
@@ -81,7 +81,7 @@ export class ImportService {
       if (parsedData.type === 'MyCrew_Contact' && parsedData.data) {
         // Format QR Code MyCrew
         const contact = await this.convertQRToContact(parsedData.data);
-        const existingContact = await DatabaseService.findContactByNameAndPhone(contact.name, contact.phone);
+        const existingContact = await DatabaseService.getInstance().findContactByNameAndPhone(contact.name, contact.phone);
         
         if (existingContact) {
           return {
@@ -92,7 +92,7 @@ export class ImportService {
           };
         }
         
-        await DatabaseService.addContact(contact);
+        await DatabaseService.getInstance().createContact(contact);
         
         return {
           success: true,
@@ -151,14 +151,14 @@ export class ImportService {
       for (const contactData of contacts) {
         try {
           const contact = await this.convertExportToContact(contactData);
-          const existing = await DatabaseService.findContactByNameAndPhone(contact.name, contact.phone);
+          const existing = await DatabaseService.getInstance().findContactByNameAndPhone(contact.name, contact.phone);
           
           if (existing) {
             duplicates++;
             continue;
           }
           
-          await DatabaseService.addContact(contact);
+          await DatabaseService.getInstance().createContact(contact);
           imported++;
           
         } catch (contactError) {
@@ -203,14 +203,14 @@ export class ImportService {
           
           if (!contactData.name) continue;
           
-          const existing = await DatabaseService.findContactByNameAndPhone(contactData.name, contactData.phone);
+          const existing = await DatabaseService.getInstance().findContactByNameAndPhone(contactData.name, contactData.phone);
           
           if (existing) {
             duplicates++;
             continue;
           }
           
-          await DatabaseService.addContact(contactData);
+          await DatabaseService.getInstance().createContact(contactData);
           imported++;
           
         } catch (contactError) {
@@ -249,14 +249,14 @@ export class ImportService {
           
           if (!contact.name) continue;
           
-          const existing = await DatabaseService.findContactByNameAndPhone(contact.name, contact.phone);
+          const existing = await DatabaseService.getInstance().findContactByNameAndPhone(contact.name, contact.phone);
           
           if (existing) {
             duplicates++;
             continue;
           }
           
-          await DatabaseService.addContact(contact);
+          await DatabaseService.getInstance().createContact(contact);
           imported++;
           
         } catch (contactError) {

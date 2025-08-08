@@ -5,13 +5,11 @@ import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
 
 import { DatabaseService } from './services/DatabaseService';
 import { SampleDataService } from './services/SampleDataService';
 import { MyCrewColors } from './constants/Colors';
-import { RootStackParamList, TabParamList } from './types';
+import { RootStackParamList } from './types';
 
 // Screens
 import ContactsScreen from './screens/ContactsScreen';
@@ -28,85 +26,6 @@ import ImportOptionsScreen from './screens/ImportOptionsScreen';
 import SplashScreen from './screens/SplashScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator<TabParamList>();
-
-function TabNavigator() {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap;
-
-          if (route.name === 'Contacts') {
-            iconName = focused ? 'people' : 'people-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
-          } else if (route.name === 'Settings') {
-            iconName = focused ? 'settings' : 'settings-outline';
-          } else {
-            iconName = 'help-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: MyCrewColors.accent,
-        tabBarInactiveTintColor: MyCrewColors.iconMuted,
-        tabBarStyle: {
-          backgroundColor: MyCrewColors.cardBackground,
-          borderTopWidth: 1,
-          borderTopColor: MyCrewColors.accentSecondary,
-          paddingTop: 5,
-          paddingBottom: 5,
-          height: 60,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
-        headerStyle: {
-          backgroundColor: MyCrewColors.background,
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: MyCrewColors.accentSecondary,
-        },
-        headerTintColor: MyCrewColors.textPrimary,
-        headerTitleStyle: {
-          fontWeight: '600',
-          fontSize: 17,
-          color: MyCrewColors.textPrimary,
-        },
-      })}
-    >
-      <Tab.Screen
-        name="Contacts"
-        component={ContactsScreen}
-        options={{
-          title: 'MyCrew',
-          headerTitleStyle: {
-            fontWeight: '700',
-            fontSize: 24,
-            color: MyCrewColors.textPrimary,
-          },
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          title: 'Mon profil',
-        }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          title: 'Paramètres',
-        }}
-      />
-    </Tab.Navigator>
-  );
-}
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -158,9 +77,12 @@ export default function App() {
         }}
       >
         <Stack.Screen 
-          name="MainTabs" 
-          component={TabNavigator} 
-          options={{ headerShown: false }} 
+          name="Contacts" 
+          component={ContactsScreen} 
+          options={{ 
+            headerShown: false,
+            title: 'MyCrew'
+          }} 
         />
         <Stack.Screen 
           name="ContactDetail" 
@@ -201,6 +123,16 @@ export default function App() {
           name="ImportOptions" 
           component={ImportOptionsScreen}
           options={{ title: 'Importer' }}
+        />
+        <Stack.Screen 
+          name="Profile" 
+          component={ProfileScreen}
+          options={{ title: 'Mon profil' }}
+        />
+        <Stack.Screen 
+          name="Settings" 
+          component={SettingsScreen}
+          options={{ title: 'Paramètres' }}
         />
       </Stack.Navigator>
       <StatusBar style="dark" backgroundColor={MyCrewColors.background} />

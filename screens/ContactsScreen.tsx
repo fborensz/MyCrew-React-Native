@@ -1,7 +1,7 @@
 // MyCrew React Native - Contacts Screen
-// Main screen displaying contacts list with search and filtering
+// Écran principal avec encart profil et bouton paramètres flottant
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -10,16 +10,63 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  Text,
+  Animated,
+  StatusBar,
+  Modal,
+  Dimensions,
+  SafeAreaView,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import type { StackNavigationProp } from '@react-navigation/stack';
 
-import { ThemedText } from '../components/ThemedText';
-import { ThemedView } from '../components/ThemedView';
 import { DatabaseService } from '../services/DatabaseService';
-import { MyCrewColors, Spacing } from '../constants/Colors';
-import { Contact, RootStackParamList } from '../types';
+import { MyCrewColors } from '../constants/Colors';
+import { Contact, UserProfile, RootStackParamList } from '../types';
+
+const { width, height } = Dimensions.get('window');
+
+const Spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+};
+
+const Typography = {
+  small: 12,
+  body: 14,
+  subheadline: 16,
+  headline: 18,
+  title: 20,
+  largeTitle: 24,
+};
+
+const BorderRadius = {
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16,
+};
+
+const Shadows = {
+  small: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  medium: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+};
 
 interface ContactRowProps {
   contact: Contact;
@@ -35,54 +82,157 @@ function ContactRow({ contact, onPress, onQRPress }: ContactRowProps) {
     <TouchableOpacity style={styles.contactRow} onPress={onPress}>
       <View style={styles.contactInfo}>
         <View style={styles.nameRow}>
-          <ThemedText variant="body" weight="semibold" numberOfLines={1}>
+          <Text style={styles.contactName} numberOfLines={1}>
             {contact.name}
-          </ThemedText>
+          </Text>
           {contact.isFavorite && (
             <Ionicons 
               name="star" 
               size={16} 
-              color={MyCrewColors.favoriteStar} 
+              color={MyCrewColors.accent} 
               style={styles.favoriteIcon}
             />
           )}
         </View>
-        <ThemedText variant="footnote" color="textSecondary" numberOfLines={1}>
+        <Text style={styles.contactJob} numberOfLines={1}>
           {contact.jobTitle}
-        </ThemedText>
+        </Text>
         {city && (
-          <ThemedText variant="caption" color="iconMuted" numberOfLines={1}>
+          <Text style={styles.contactCity} numberOfLines={1}>
             {city}
-          </ThemedText>
+          </Text>
         )}
       </View>
-      <TouchableOpacity style={styles.qrButton} onPress={onQRPress}>
-        <Ionicons name="qr-code-outline" size={24} color={MyCrewColors.accent} />
+      
+      <TouchableOpacity
+        style={styles.qrButton}
+        onPress={onQRPress}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Ionicons 
+          name="qr-code-outline" 
+          size={24} 
+          color={MyCrewColors.iconMuted}
+        />
       </TouchableOpacity>
     </TouchableOpacity>
   );
 }
 
-interface ContactsScreenProps {
-  navigation: StackNavigationProp<RootStackParamList, 'MainTabs'>;
+interface ProfileCardProps {
+  profile: UserProfile | null;
+  onPress: () => void;
+  onQRPress: () => void;
 }
 
-export default function ContactsScreen({ navigation }: ContactsScreenProps) {
+function ProfileCard({ profile, onPress, onQRPress }: ProfileCardProps) {
+  if (!profile) {
+    return (
+      <TouchableOpacity style={styles.profileCard} onPress={onPress}>
+        <View style={styles.profileContent}>
+          <Text style={styles.profileLabel}>MON PROFIL</Text>
+          <Text style={styles.profileEmpty}>Créer mon profil</Text>
+        </View>
+        <TouchableOpacity style={styles.profileQRButton} onPress={onQRPress}>
+          <Ionicons name="qr-code" size={28} color={MyCrewColors.background} />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  }
+
+  const primaryLocation = profile.locations.find(loc => loc.isPrimary);
+  const location = primaryLocation?.region || primaryLocation?.country || '';
+
+  return (
+    <TouchableOpacity style={styles.profileCard} onPress={onPress}>
+      <View style={styles.profileContent}>
+        <Text style={styles.profileLabel}>MON PROFIL</Text>
+        <Text style={styles.profileName}>{profile.name}</Text>
+        <Text style={styles.profileJob}>{profile.jobTitle}</Text>
+        {location && <Text style={styles.profileLocation}>{location}</Text>}
+      </View>
+      <TouchableOpacity style={styles.profileQRButton} onPress={onQRPress}>
+        <Ionicons name="qr-code" size={28} color={MyCrewColors.background} />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+}
+
+interface QRModalProps {
+  visible: boolean;
+  onClose: () => void;
+  profile: UserProfile | null;
+}
+
+function QRModal({ visible, onClose, profile }: QRModalProps) {
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity style={styles.modalBackground} onPress={onClose} />
+        <View style={styles.qrModalContent}>
+          <View style={styles.qrModalHeader}>
+            <Text style={styles.qrModalTitle}>Mon QR Code</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.qrCodeContainer}>
+            <View style={styles.fakeQRCode}>
+              <Ionicons name="qr-code" size={120} color={MyCrewColors.accent} />
+              <Text style={styles.qrPlaceholder}>QR Code à venir</Text>
+            </View>
+          </View>
+          
+          {profile && (
+            <View style={styles.qrModalInfo}>
+              <Text style={styles.qrModalName}>{profile.name}</Text>
+              <Text style={styles.qrModalJob}>{profile.jobTitle}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+export default function ContactsScreen() {
+  const navigation = useNavigation();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  
+  // Animation pour le bouton paramètres
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const settingsButtonScale = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0.5],
+    extrapolate: 'clamp',
+  });
 
-  const loadContacts = async () => {
+  const loadData = async () => {
     try {
       const db = DatabaseService.getInstance();
-      const contactsData = await db.getAllContacts();
+      const [contactsData, userProfile] = await Promise.all([
+        db.getAllContacts(),
+        db.getUserProfile(),
+      ]);
+      
       setContacts(contactsData);
       setFilteredContacts(contactsData);
+      setProfile(userProfile);
     } catch (error) {
-      console.error('Error loading contacts:', error);
-      Alert.alert('Erreur', 'Impossible de charger les contacts');
+      console.error('Error loading data:', error);
+      Alert.alert('Erreur', 'Impossible de charger les données');
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -101,236 +251,393 @@ export default function ContactsScreen({ navigation }: ContactsScreenProps) {
       setFilteredContacts(results);
     } catch (error) {
       console.error('Error searching contacts:', error);
+      setFilteredContacts([]);
     }
   }, [contacts]);
 
-  const handleSearch = (text: string) => {
-    setSearchText(text);
-    searchContacts(text);
-  };
-
-  const handleContactPress = (contact: Contact) => {
-    navigation.navigate('ContactDetail', { contactId: contact.id });
-  };
-
-  const handleQRPress = (contact: Contact) => {
-    navigation.navigate('QRCodeDisplay', { contact });
-  };
-
-  const handleAddContact = () => {
-    navigation.navigate('AddContact');
-  };
-
-  const handleScanQR = () => {
-    navigation.navigate('QRScanner');
-  };
-
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadContacts();
-  };
+    loadData();
+  }, []);
 
+  // Recharger les données quand l'écran devient actif
   useFocusEffect(
     useCallback(() => {
-      loadContacts();
+      loadData();
     }, [])
   );
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons 
-        name="people-outline" 
-        size={64} 
-        color={MyCrewColors.iconMuted} 
-        style={styles.emptyIcon}
-      />
-      <ThemedText variant="headline" weight="semibold" style={styles.emptyTitle}>
-        Aucun contact
-      </ThemedText>
-      <ThemedText variant="body" color="textSecondary" style={styles.emptyText}>
-        Ajoutez votre premier contact pour commencer à constituer votre équipe
-      </ThemedText>
-      <TouchableOpacity style={styles.addButton} onPress={handleAddContact}>
-        <ThemedText variant="body" weight="semibold" color="white">
-          Ajouter un contact
-        </ThemedText>
-      </TouchableOpacity>
-    </View>
-  );
+  // Effet pour la recherche
+  useEffect(() => {
+    searchContacts(searchText);
+  }, [searchText, searchContacts]);
+
+  const handleContactPress = (contact: Contact) => {
+    navigation.navigate('ContactDetail' as never, { contactId: contact.id } as never);
+  };
+
+  const handleContactQRPress = (contact: Contact) => {
+    navigation.navigate('QRCodeDisplay' as never, { contact } as never);
+  };
+
+  const handleProfilePress = () => {
+    if (profile) {
+      navigation.navigate('Profile' as never);
+    } else {
+      navigation.navigate('UserProfileEditor' as never);
+    }
+  };
+
+  const handleProfileQRPress = () => {
+    if (profile) {
+      setShowQRModal(true);
+    } else {
+      Alert.alert('Aucun profil', 'Créez d\'abord votre profil pour générer un QR code.');
+    }
+  };
+
+  const handleSettingsPress = () => {
+    navigation.navigate('Settings' as never);
+  };
 
   const renderContact = ({ item }: { item: Contact }) => (
     <ContactRow
       contact={item}
       onPress={() => handleContactPress(item)}
-      onQRPress={() => handleQRPress(item)}
+      onQRPress={() => handleContactQRPress(item)}
     />
   );
 
-  const renderHeader = () => (
-    <View style={styles.header}>
+  const ListHeaderComponent = () => (
+    <View>
+      {/* Encart de profil */}
+      <ProfileCard
+        profile={profile}
+        onPress={handleProfilePress}
+        onQRPress={handleProfileQRPress}
+      />
+      
+      {/* Barre de recherche */}
       <View style={styles.searchContainer}>
-        <Ionicons 
-          name="search" 
-          size={20} 
-          color={MyCrewColors.iconMuted}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Rechercher..."
-          placeholderTextColor={MyCrewColors.gray}
-          value={searchText}
-          onChangeText={handleSearch}
-          returnKeyType="search"
-        />
-        {searchText.length > 0 && (
-          <TouchableOpacity onPress={() => handleSearch('')}>
-            <Ionicons name="close-circle" size={20} color={MyCrewColors.gray} />
-          </TouchableOpacity>
-        )}
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search" size={20} color={MyCrewColors.iconMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Rechercher un contact..."
+            placeholderTextColor={MyCrewColors.placeholderText}
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchText('')}>
+              <Ionicons name="close-circle" size={20} color={MyCrewColors.iconMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       
-      <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.scanButton} onPress={handleScanQR}>
-          <Ionicons name="qr-code" size={24} color={MyCrewColors.white} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.addButtonHeader} onPress={handleAddContact}>
-          <Ionicons name="add" size={24} color={MyCrewColors.white} />
+      {/* Header de la liste */}
+      <View style={styles.listHeader}>
+        <Text style={styles.listTitle}>
+          {filteredContacts.length > 0 
+            ? `${filteredContacts.length} contact${filteredContacts.length > 1 ? 's' : ''}`
+            : 'Aucun contact'
+          }
+        </Text>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => navigation.navigate('AddContact' as never)}
+        >
+          <Ionicons name="add" size={20} color={MyCrewColors.accent} />
+          <Text style={styles.addButtonText}>Nouveau</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
-    <ThemedView style={styles.container}>
-      {renderHeader()}
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={MyCrewColors.background} />
       
+      {/* Titre MyCrew */}
+      <View style={styles.titleContainer}>
+        <Text style={styles.screenTitle}>MyCrew</Text>
+      </View>
+
       <FlatList
         data={filteredContacts}
         renderItem={renderContact}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.list,
-          filteredContacts.length === 0 && styles.emptyList
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[MyCrewColors.accent]}
-            tintColor={MyCrewColors.accent}
-          />
-        }
-        ListEmptyComponent={!isLoading ? renderEmptyState : null}
+        ListHeaderComponent={ListHeaderComponent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
       />
-    </ThemedView>
+
+      {/* Bouton paramètres flottant */}
+      <Animated.View style={[
+        styles.settingsButton,
+        { transform: [{ scale: settingsButtonScale }] }
+      ]}>
+        <TouchableOpacity
+          style={styles.settingsButtonInner}
+          onPress={handleSettingsPress}
+        >
+          <Ionicons name="settings" size={24} color={MyCrewColors.background} />
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Modal QR Code */}
+      <QRModal
+        visible={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        profile={profile}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: MyCrewColors.background,
   },
-  header: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
+  titleContainer: {
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: MyCrewColors.separator,
+    borderBottomColor: MyCrewColors.border,
   },
-  searchContainer: {
+  screenTitle: {
+    fontSize: Typography.largeTitle,
+    fontWeight: '700',
+    color: MyCrewColors.textPrimary,
+  },
+  listContent: {
+    paddingBottom: 100, // Espace pour le bouton flottant
+  },
+  
+  // Encart de profil
+  profileCard: {
+    backgroundColor: MyCrewColors.accent,
+    margin: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: MyCrewColors.lightGray,
-    borderRadius: 12,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.md,
-    height: 44,
+    ...Shadows.medium,
   },
-  searchIcon: {
-    marginRight: Spacing.sm,
+  profileContent: {
+    flex: 1,
+  },
+  profileLabel: {
+    fontSize: Typography.small,
+    fontWeight: '600',
+    color: MyCrewColors.background,
+    opacity: 0.9,
+    marginBottom: Spacing.xs,
+    letterSpacing: 1,
+  },
+  profileName: {
+    fontSize: Typography.title,
+    fontWeight: '700',
+    color: MyCrewColors.background,
+    marginBottom: Spacing.xs,
+  },
+  profileJob: {
+    fontSize: Typography.subheadline,
+    color: MyCrewColors.background,
+    opacity: 0.9,
+    marginBottom: Spacing.xs,
+  },
+  profileLocation: {
+    fontSize: Typography.body,
+    color: MyCrewColors.background,
+    opacity: 0.8,
+  },
+  profileEmpty: {
+    fontSize: Typography.subheadline,
+    color: MyCrewColors.background,
+    opacity: 0.9,
+    fontStyle: 'italic',
+  },
+  profileQRButton: {
+    padding: Spacing.sm,
+  },
+  
+  // Barre de recherche
+  searchContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: MyCrewColors.cardBackground,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    gap: Spacing.md,
+    ...Shadows.small,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: Typography.body,
     color: MyCrewColors.textPrimary,
   },
-  actionButtons: {
+  
+  // Header de liste
+  listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: Spacing.sm,
-  },
-  scanButton: {
-    flex: 1,
-    backgroundColor: MyCrewColors.iconMuted,
-    borderRadius: 12,
-    paddingVertical: Spacing.sm,
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
-  addButtonHeader: {
-    flex: 1,
-    backgroundColor: MyCrewColors.accent,
-    borderRadius: 12,
-    paddingVertical: Spacing.sm,
+  listTitle: {
+    fontSize: Typography.subheadline,
+    fontWeight: '600',
+    color: MyCrewColors.textSecondary,
+  },
+  addButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: Spacing.xs,
   },
-  list: {
-    paddingHorizontal: Spacing.md,
+  addButtonText: {
+    fontSize: Typography.body,
+    fontWeight: '600',
+    color: MyCrewColors.accent,
   },
-  emptyList: {
-    flexGrow: 1,
-  },
+  
+  // Lignes de contact
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: MyCrewColors.cardBackground,
-    padding: Spacing.md,
-    marginVertical: Spacing.xs,
-    borderRadius: 12,
-    elevation: 1,
-    shadowColor: MyCrewColors.cardShadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    ...Shadows.small,
   },
   contactInfo: {
     flex: 1,
-    marginRight: Spacing.sm,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: Spacing.xs,
+  },
+  contactName: {
+    fontSize: Typography.subheadline,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
+    flex: 1,
   },
   favoriteIcon: {
     marginLeft: Spacing.xs,
   },
+  contactJob: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textSecondary,
+    marginBottom: Spacing.xs,
+  },
+  contactCity: {
+    fontSize: Typography.small,
+    color: MyCrewColors.iconMuted,
+  },
   qrButton: {
     padding: Spacing.sm,
   },
-  emptyState: {
+  
+  // Bouton paramètres flottant
+  settingsButton: {
+    position: 'absolute',
+    bottom: Spacing.xl,
+    right: Spacing.xl,
+  },
+  settingsButtonInner: {
+    backgroundColor: MyCrewColors.accent,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Shadows.medium,
+  },
+  
+  // Modal QR
+  modalOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
   },
-  emptyIcon: {
+  modalBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  qrModalContent: {
+    backgroundColor: MyCrewColors.background,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    margin: Spacing.xl,
+    maxWidth: width * 0.9,
+    ...Shadows.medium,
+  },
+  qrModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: Spacing.lg,
   },
-  emptyTitle: {
-    marginBottom: Spacing.sm,
+  qrModalTitle: {
+    fontSize: Typography.title,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
   },
-  emptyText: {
-    textAlign: 'center',
-    marginBottom: Spacing.xl,
+  closeButton: {
+    padding: Spacing.sm,
   },
-  addButton: {
-    backgroundColor: MyCrewColors.accent,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: 12,
+  qrCodeContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  fakeQRCode: {
+    width: 200,
+    height: 200,
+    backgroundColor: MyCrewColors.cardBackground,
+    borderRadius: BorderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: MyCrewColors.border,
+  },
+  qrPlaceholder: {
+    fontSize: Typography.small,
+    color: MyCrewColors.textSecondary,
+    marginTop: Spacing.sm,
+  },
+  qrModalInfo: {
+    alignItems: 'center',
+  },
+  qrModalName: {
+    fontSize: Typography.headline,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
+    marginBottom: Spacing.xs,
+  },
+  qrModalJob: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textSecondary,
   },
 });
