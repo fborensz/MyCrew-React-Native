@@ -44,30 +44,48 @@ export class ImportService {
   // Import depuis un fichier
   static async importFromFile(): Promise<ImportResult> {
     try {
+      console.log('Ouverture du DocumentPicker...');
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/json', 'text/csv', 'text/vcard', 'text/x-vcard'],
-        copyToCacheDirectory: true
+        copyToCacheDirectory: true,
+        multiple: false
       });
       
+      console.log('DocumentPicker result:', result);
+      
       if (result.canceled) {
+        console.log('Import annulé par l\'utilisateur');
         return {
           success: false,
           imported: 0,
-          errors: ['Import annulé par l\'utilisateur'],
+          errors: [],
+          duplicates: 0
+        };
+      }
+
+      if (!result.assets || result.assets.length === 0) {
+        console.log('Aucun fichier sélectionné');
+        return {
+          success: false,
+          imported: 0,
+          errors: ['Aucun fichier sélectionné'],
           duplicates: 0
         };
       }
       
+      console.log('Lecture du fichier:', result.assets[0].name);
       const fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri);
       const format = this.detectFileFormat(result.assets[0].name, fileContent);
       
+      console.log('Format détecté:', format);
       return await this.processImportData(fileContent, format);
       
     } catch (error) {
+      console.error('ImportService error:', error);
       return {
         success: false,
         imported: 0,
-        errors: [`Erreur lecture fichier: ${error.message}`],
+        errors: [`Erreur lecture fichier: ${error?.message || 'Erreur inconnue'}`],
         duplicates: 0
       };
     }

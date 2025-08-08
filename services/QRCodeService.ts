@@ -18,7 +18,7 @@ export class QRCodeService {
         jobTitle: contact.jobTitle,
         phone: contact.phone,
         email: contact.email,
-        notes: contact.notes,
+        notes: '',
         locations: contact.locations.map(location => ({
           country: location.country,
           region: location.region,
@@ -78,7 +78,7 @@ export class QRCodeService {
         jobTitle: qrData.data.jobTitle || '',
         phone: qrData.data.phone || '',
         email: qrData.data.email || '',
-        notes: qrData.data.notes || '',
+        notes: '',
         isFavorite: false,
         locations: qrData.data.locations?.map((location, index) => ({
           id: `location_${Date.now()}_${index}`,

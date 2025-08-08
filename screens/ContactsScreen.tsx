@@ -171,8 +171,6 @@ interface QRModalProps {
 }
 
 function QRModal({ visible, onClose, profile, contact }: QRModalProps) {
-  const title = contact ? 'QR Code Contact' : 'Mon QR Code';
-  
   return (
     <Modal
       visible={visible}
@@ -183,22 +181,17 @@ function QRModal({ visible, onClose, profile, contact }: QRModalProps) {
       <View style={styles.modalOverlay}>
         <TouchableOpacity style={styles.modalBackground} onPress={onClose} />
         <View style={styles.qrModalContent}>
-          <View style={styles.qrModalHeader}>
-            <Text style={styles.qrModalTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+          </TouchableOpacity>
           
-          <ScrollView contentContainerStyle={styles.qrScrollContent} showsVerticalScrollIndicator={false}>
-            <QRCodeDisplay 
-              contact={contact || undefined}
-              profile={profile || undefined}
-              size={200}
-              showTitle={false}
-              showDebugInfo={false}
-            />
-          </ScrollView>
+          <QRCodeDisplay 
+            contact={contact || undefined}
+            profile={profile || undefined}
+            size={180}
+            showTitle={false}
+            showDebugInfo={false}
+          />
         </View>
       </View>
     </Modal>
@@ -625,6 +618,7 @@ export default function ContactsScreen() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportData, setExportData] = useState<Contact | UserProfile | Contact[] | null>(null);
   const [exportType, setExportType] = useState<'contact' | 'profile' | 'contacts'>('contacts');
+  const [showImportMenu, setShowImportMenu] = useState(false);
   
   useEffect(() => {
     console.log('showFiltersModal state changed:', showFiltersModal);
@@ -841,7 +835,7 @@ export default function ContactsScreen() {
         );
         // Recharger les données
         loadData();
-      } else {
+      } else if (result.errors.length > 0) {
         Alert.alert(
           'Erreur d\'import',
           result.errors.join('\n') || 'Une erreur inconnue s\'est produite'
@@ -887,7 +881,7 @@ export default function ContactsScreen() {
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.importButton}
-            onPress={handleImportPress}
+            onPress={() => setShowImportMenu(!showImportMenu)}
           >
             <Ionicons name="download-outline" size={22} color={MyCrewColors.accent} />
           </TouchableOpacity>
@@ -1120,6 +1114,49 @@ export default function ContactsScreen() {
         />
       )}
 
+      {/* Menu dropdown d'import */}
+      {showImportMenu && (
+        <>
+          <TouchableOpacity
+            style={styles.importMenuOverlay}
+            onPress={() => setShowImportMenu(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.importDropdownMenu}>
+            <TouchableOpacity
+              style={styles.importMenuItem}
+              onPress={() => {
+                setShowImportMenu(false);
+                // Option QR Code - non fonctionnelle pour le moment
+              }}
+              disabled={true}
+            >
+              <Ionicons name="qr-code-outline" size={18} color={MyCrewColors.iconMuted} />
+              <Text style={[styles.importMenuText, styles.importMenuTextDisabled]}>Scan QR Code</Text>
+              <Text style={styles.importMenuBadge}>Bientôt</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.importMenuSeparator} />
+            
+            <TouchableOpacity
+              style={styles.importMenuItem}
+              onPress={() => {
+                console.log('Fichier option cliqué');
+                setShowImportMenu(false);
+                handleImportPress();
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="document-outline" size={18} color={MyCrewColors.accent} />
+              <View style={styles.importMenuTextContainer}>
+                <Text style={styles.importMenuText}>Fichier</Text>
+                <Text style={styles.importMenuSubText}>(JSON, CSV, vCard)</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
     </SafeAreaView>
   );
 }
@@ -1227,6 +1264,65 @@ const styles = StyleSheet.create({
   },
   addContactButton: {
     padding: Spacing.sm,
+  },
+  
+  // Menu dropdown import
+  importDropdownMenu: {
+    position: 'absolute',
+    top: 240, // Position approximative sous le bouton import
+    right: 20,
+    backgroundColor: MyCrewColors.background,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
+    minWidth: 180,
+    maxWidth: 220,
+    ...Shadows.medium,
+    zIndex: 1001,
+    borderWidth: 1,
+    borderColor: MyCrewColors.border,
+  },
+  importMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.sm,
+    minHeight: 44, // Hauteur minimum pour une bonne zone de clic
+  },
+  importMenuTextContainer: {
+    flex: 1,
+  },
+  importMenuText: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textPrimary,
+    fontWeight: '500',
+  },
+  importMenuSubText: {
+    fontSize: Typography.small,
+    color: MyCrewColors.textSecondary,
+    marginTop: 2,
+  },
+  importMenuTextDisabled: {
+    color: MyCrewColors.iconMuted,
+  },
+  importMenuBadge: {
+    fontSize: Typography.small,
+    color: MyCrewColors.iconMuted,
+    fontStyle: 'italic',
+  },
+  importMenuSeparator: {
+    height: 1,
+    backgroundColor: MyCrewColors.border,
+    marginVertical: Spacing.xs,
+  },
+  importMenuOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    backgroundColor: 'transparent',
   },
   
   // Barre de recherche
@@ -1342,28 +1438,15 @@ const styles = StyleSheet.create({
   qrModalContent: {
     backgroundColor: MyCrewColors.background,
     borderRadius: BorderRadius.xl,
-    padding: Spacing.xl,
-    margin: Spacing.xl,
-    maxWidth: width * 0.9,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    alignSelf: 'center',
     ...Shadows.medium,
   },
-  qrModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  qrModalTitle: {
-    fontSize: Typography.title,
-    fontWeight: '600',
-    color: MyCrewColors.textPrimary,
-  },
   closeButton: {
-    padding: Spacing.sm,
-  },
-  qrScrollContent: {
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    alignSelf: 'flex-end',
+    padding: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   
   // Section headers

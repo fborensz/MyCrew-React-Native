@@ -72,30 +72,15 @@ export default function QRCodeDisplay({
         />
       </View>
 
-      {/* Display contact info below QR code */}
-      {contact && (
+      {/* Display only name and job below QR code */}
+      {(contact || profile) && (
         <View style={styles.infoContainer}>
-          <Text style={styles.nameText}>{contact.firstName} {contact.lastName}</Text>
-          <Text style={styles.jobText}>{contact.jobTitle}</Text>
-          {contact.phone && (
-            <Text style={styles.detailText}>📞 {contact.phone}</Text>
-          )}
-          {contact.email && (
-            <Text style={styles.detailText}>📧 {contact.email}</Text>
-          )}
-        </View>
-      )}
-
-      {profile && (
-        <View style={styles.infoContainer}>
-          <Text style={styles.nameText}>{profile.firstName} {profile.lastName}</Text>
-          <Text style={styles.jobText}>{profile.jobTitle}</Text>
-          {profile.phoneNumber && (
-            <Text style={styles.detailText}>📞 {profile.phoneNumber}</Text>
-          )}
-          {profile.email && (
-            <Text style={styles.detailText}>📧 {profile.email}</Text>
-          )}
+          <Text style={styles.nameText}>
+            {contact ? `${contact.firstName} ${contact.lastName}` : `${profile!.firstName} ${profile!.lastName}`}
+          </Text>
+          <Text style={styles.jobText}>
+            {contact ? contact.jobTitle : profile!.jobTitle}
+          </Text>
         </View>
       )}
 

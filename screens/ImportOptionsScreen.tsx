@@ -78,14 +78,12 @@ export default function ImportOptionsScreen() {
         }
         
         Alert.alert('Import terminé', message, [{ text: 'OK' }]);
-      } else {
-        if (result.errors.length > 0 && !result.errors[0].includes('annulé')) {
-          Alert.alert(
-            'Erreur d\'import',
-            result.errors.join('\n'),
-            [{ text: 'OK' }]
-          );
-        }
+      } else if (result.errors.length > 0) {
+        Alert.alert(
+          'Erreur d\'import',
+          result.errors.join('\n'),
+          [{ text: 'OK' }]
+        );
       }
       
     } catch (error) {
