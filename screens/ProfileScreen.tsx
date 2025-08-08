@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MyCrewColors } from '../constants/Colors';
 import { UserProfile } from '../types';
 import { DatabaseService } from '../services/DatabaseService';
+import ExportModal from '../components/ExportModal';
 
 const Spacing = {
   xs: 4,
@@ -58,6 +59,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Recharger le profil à chaque fois que l'écran devient actif
   useFocusEffect(
@@ -95,6 +97,14 @@ export default function ProfileScreen() {
       navigation.navigate('QRCodeDisplay' as never, { profile } as never);
     } else {
       Alert.alert('Aucun profil', 'Créez d\'abord votre profil pour générer un QR code.');
+    }
+  };
+
+  const handleExport = () => {
+    if (profile) {
+      setShowExportModal(true);
+    } else {
+      Alert.alert('Aucun profil', 'Créez d\'abord votre profil pour l\'exporter.');
     }
   };
 
@@ -178,9 +188,14 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        <TouchableOpacity style={styles.editButton} onPress={navigateToEditor}>
-          <Ionicons name="create-outline" size={20} color={MyCrewColors.accent} />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity style={styles.headerButton} onPress={handleExport}>
+            <Ionicons name="share-outline" size={20} color={MyCrewColors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerButton} onPress={navigateToEditor}>
+            <Ionicons name="create-outline" size={20} color={MyCrewColors.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Informations de contact */}
@@ -290,6 +305,14 @@ export default function ProfileScreen() {
           <Text style={styles.actionButtonTextSecondary}>Modifier le profil</Text>
         </TouchableOpacity>
       </View>
+      
+      {/* Export Modal */}
+      <ExportModal 
+        visible={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        data={profile}
+        type="profile"
+      />
     </ScrollView>
   );
 }
@@ -390,8 +413,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
     color: MyCrewColors.textSecondary,
   },
-  editButton: {
+  headerButtons: {
+    flexDirection: 'row',
+  },
+  headerButton: {
     padding: Spacing.sm,
+    marginLeft: Spacing.xs,
   },
   section: {
     backgroundColor: MyCrewColors.cardBackground,

@@ -27,6 +27,8 @@ import { MyCrewColors } from '../constants/Colors';
 import { Contact, UserProfile, RootStackParamList } from '../types';
 import { FILM_DEPARTMENTS } from '../data/JobTitles';
 import { COUNTRIES_WITH_REGIONS } from '../data/Locations';
+import ExportModal from '../components/ExportModal';
+import { ImportService } from '../services/ImportService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -622,6 +624,9 @@ export default function ContactsScreen() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportData, setExportData] = useState<Contact | UserProfile | Contact[] | null>(null);
+  const [exportType, setExportType] = useState<'contact' | 'profile' | 'contacts'>('contacts');
   
   useEffect(() => {
     console.log('showFiltersModal state changed:', showFiltersModal);
@@ -870,6 +875,29 @@ export default function ContactsScreen() {
       hasVehicle: false,
     });
   };
+  
+  const handleImportPress = async () => {
+    try {
+      const result = await ImportService.importFromFile();
+      
+      if (result.success) {
+        Alert.alert(
+          'Import réussi',
+          `${result.imported} contact(s) importé(s) avec succès${result.duplicates > 0 ? `, ${result.duplicates} doublon(s) ignoré(s)` : ''}`
+        );
+        // Recharger les données
+        loadData();
+      } else {
+        Alert.alert(
+          'Erreur d\'import',
+          result.errors.join('\n') || 'Une erreur inconnue s\'est produite'
+        );
+      }
+    } catch (error) {
+      console.error('Import error:', error);
+      Alert.alert('Erreur', 'Impossible d\'importer le fichier');
+    }
+  };
 
   // Group contacts by first letter
   const groupContactsByLetter = (contacts: Contact[]) => {
@@ -907,22 +935,33 @@ export default function ContactsScreen() {
 
   const ListHeaderComponent = () => (
     <View>
-      {/* Encart de profil */}
-      <ProfileCard
-        profile={profile}
-        onPress={handleProfilePress}
-        onQRPress={handleProfileQRPress}
-      />
-      
-      {/* Titre de section et bouton ajouter */}
+      {/* Titre de section et boutons d'action */}
       <View style={styles.contactsHeaderContainer}>
         <Text style={styles.contactsTitle}>Mes Contacts</Text>
-        <TouchableOpacity 
-          style={styles.addContactButton}
-          onPress={() => navigation.navigate('AddContact' as never)}
-        >
-          <Ionicons name="add" size={24} color={MyCrewColors.accent} />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={styles.exportButton}
+            onPress={() => {
+              setExportData(contacts);
+              setExportType('contacts');
+              setShowExportModal(true);
+            }}
+          >
+            <Ionicons name="share-outline" size={22} color={MyCrewColors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.importButton}
+            onPress={handleImportPress}
+          >
+            <Ionicons name="download-outline" size={22} color={MyCrewColors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.addContactButton}
+            onPress={() => navigation.navigate('AddContact' as never)}
+          >
+            <Ionicons name="add" size={24} color={MyCrewColors.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
       
       {/* Barre de recherche */}
@@ -1057,6 +1096,13 @@ export default function ContactsScreen() {
         </View>
       </View>
 
+      {/* Encart de profil fixe */}
+      <ProfileCard
+        profile={profile}
+        onPress={handleProfilePress}
+        onQRPress={handleProfileQRPress}
+      />
+
       <SectionList
         sections={contactSections}
         renderItem={renderContact}
@@ -1109,6 +1155,16 @@ export default function ContactsScreen() {
         onApplyFilters={handleApplyFilters}
         onClearFilters={handleClearFilters}
       />
+      
+      {/* Modal Export */}
+      {exportData && (
+        <ExportModal
+          visible={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          data={exportData}
+          type={exportType}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -1177,6 +1233,14 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     fontStyle: 'italic',
   },
+  profileActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  profileActionButton: {
+    padding: Spacing.sm,
+  },
   profileQRButton: {
     padding: Spacing.sm,
   },
@@ -1194,6 +1258,17 @@ const styles = StyleSheet.create({
     fontSize: Typography.title,
     fontWeight: '600',
     color: MyCrewColors.textPrimary,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  importButton: {
+    padding: Spacing.sm,
+  },
+  exportButton: {
+    padding: Spacing.sm,
   },
   addContactButton: {
     padding: Spacing.sm,
@@ -1260,6 +1335,14 @@ const styles = StyleSheet.create({
   contactCity: {
     fontSize: Typography.small,
     color: MyCrewColors.iconMuted,
+  },
+  contactActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  contactActionButton: {
+    padding: Spacing.sm,
   },
   qrButton: {
     padding: Spacing.sm,

@@ -142,7 +142,20 @@ export class ImportService {
   static async importFromJSON(content: string): Promise<ImportResult> {
     try {
       const data = JSON.parse(content);
-      const contacts = data.contacts || (Array.isArray(data) ? data : [data]);
+      
+      // Support du nouveau format d'export
+      let contacts = [];
+      if (data.version && data.data) {
+        // Nouveau format structuré
+        if (Array.isArray(data.data)) {
+          contacts = data.data;
+        } else {
+          contacts = [data.data];
+        }
+      } else {
+        // Ancien format ou format libre
+        contacts = data.contacts || (Array.isArray(data) ? data : [data]);
+      }
       
       let imported = 0;
       let duplicates = 0;

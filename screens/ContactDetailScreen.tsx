@@ -12,6 +12,7 @@ import { ThemedView } from '../components/ThemedView';
 import { DatabaseService } from '../services/DatabaseService';
 import { MyCrewColors, Spacing } from '../constants/Colors';
 import { Contact, RootStackParamList } from '../types';
+import ExportModal from '../components/ExportModal';
 
 interface ContactDetailScreenProps {
   navigation: StackNavigationProp<RootStackParamList, 'ContactDetail'>;
@@ -22,6 +23,7 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
   const { contactId } = route.params;
   const [contact, setContact] = useState<Contact | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     loadContact();
@@ -32,6 +34,13 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            onPress={handleExport} 
+            style={[styles.headerButton, !contact && styles.headerButtonDisabled]}
+            disabled={!contact}
+          >
+            <Ionicons name="share-outline" size={24} color={!contact ? MyCrewColors.iconMuted : MyCrewColors.textPrimary} />
+          </TouchableOpacity>
           <TouchableOpacity 
             onPress={handleEdit} 
             style={[styles.headerButton, !contact && styles.headerButtonDisabled]}
@@ -69,6 +78,12 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
     navigation.navigate('EditContact', { contactId });
   };
 
+  const handleExport = () => {
+    if (contact) {
+      setShowExportModal(true);
+    }
+  };
+  
   const handleQRCode = () => {
     if (contact) {
       navigation.navigate('QRCodeDisplay', { contact });
@@ -100,6 +115,20 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
       }
     } catch (error) {
       console.error('Error opening email app:', error);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!contact) return;
+    
+    try {
+      const db = DatabaseService.getInstance();
+      const updatedContact = { ...contact, isFavorite: !contact.isFavorite };
+      await db.updateContact(contact.id, updatedContact);
+      setContact(updatedContact);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      Alert.alert('Erreur', 'Impossible de modifier le favori');
     }
   };
 
@@ -162,14 +191,14 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
             <ThemedText variant="title" weight="bold">
               {contact.name}
             </ThemedText>
-            {contact.isFavorite && (
+            <TouchableOpacity onPress={handleToggleFavorite} style={styles.favoriteButton}>
               <Ionicons 
-                name="star" 
+                name={contact.isFavorite ? "star" : "star-outline"} 
                 size={24} 
-                color={MyCrewColors.favoriteStar} 
+                color={contact.isFavorite ? MyCrewColors.favoriteStar : MyCrewColors.iconMuted} 
                 style={styles.favoriteIcon}
               />
-            )}
+            </TouchableOpacity>
           </View>
           <ThemedText variant="headline" color="textSecondary">
             {contact.jobTitle}
@@ -292,6 +321,14 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
           </ThemedText>
         </TouchableOpacity>
       </ScrollView>
+      
+      {/* Export Modal */}
+      <ExportModal 
+        visible={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        data={contact}
+        type="contact"
+      />
     </ThemedView>
   );
 }
@@ -325,8 +362,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.xs,
   },
-  favoriteIcon: {
+  favoriteButton: {
     marginLeft: Spacing.sm,
+    padding: Spacing.xs,
+  },
+  favoriteIcon: {
+    // No margin needed since it's inside the button
   },
   section: {
     padding: Spacing.lg,

@@ -213,6 +213,27 @@ export default function AddContactScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {/* Header avec titre et favori */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Nouveau Contact</Text>
+        <Controller
+          control={control}
+          name="isFavorite"
+          render={({ field: { onChange, value } }) => (
+            <TouchableOpacity
+              onPress={() => onChange(!value)}
+              style={styles.favoriteButton}
+            >
+              <Ionicons
+                name={value ? 'star' : 'star-outline'}
+                size={24}
+                color={value ? '#FFD700' : MyCrewColors.iconMuted}
+              />
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+      
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Informations de base */}
         <View style={styles.section}>
@@ -429,28 +450,8 @@ export default function AddContactScreen() {
           ))}
         </View>
 
-        {/* Boutons d'action */}
+        {/* Bouton d'action */}
         <View style={styles.actionsSection}>
-          <Controller
-            control={control}
-            name="isFavorite"
-            render={({ field: { onChange, value } }) => (
-              <TouchableOpacity
-                style={styles.favoriteToggle}
-                onPress={() => onChange(!value)}
-              >
-                <Ionicons
-                  name={value ? 'star' : 'star-outline'}
-                  size={20}
-                  color={value ? MyCrewColors.accent : MyCrewColors.iconMuted}
-                />
-                <Text style={[styles.favoriteText, value && styles.favoriteTextActive]}>
-                  {value ? 'Contact favori' : 'Ajouter aux favoris'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-
           <TouchableOpacity
             style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleSubmit(onSubmit)}
@@ -477,6 +478,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: MyCrewColors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    backgroundColor: MyCrewColors.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: MyCrewColors.border,
+  },
+  headerTitle: {
+    fontSize: Typography.title,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
+  },
+  favoriteButton: {
+    padding: Spacing.sm,
   },
   scrollView: {
     flex: 1,
@@ -625,24 +644,6 @@ const styles = StyleSheet.create({
   actionsSection: {
     margin: Spacing.lg,
     gap: Spacing.lg,
-  },
-  favoriteToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: MyCrewColors.cardBackground,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.lg,
-    gap: Spacing.sm,
-    ...Shadows.small,
-  },
-  favoriteText: {
-    fontSize: Typography.body,
-    color: MyCrewColors.textSecondary,
-    fontWeight: '500',
-  },
-  favoriteTextActive: {
-    color: MyCrewColors.accent,
   },
   submitButton: {
     backgroundColor: MyCrewColors.accent,

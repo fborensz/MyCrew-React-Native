@@ -1,8 +1,7 @@
 // MyCrew React Native - Export Service
-// Support pour JSON, CSV, vCard
+// Support pour JSON, CSV, Text et QR code
 
-import { Contact, WorkLocation } from './DatabaseService';
-import { UserProfile } from '../types';
+import { Contact, UserProfile } from '../types';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
@@ -23,7 +22,14 @@ export interface ExportContact {
   }>;
 }
 
-export type ExportFormat = 'JSON' | 'CSV' | 'vCard';
+export type ExportFormat = 'json' | 'csv' | 'text' | 'qr';
+
+export interface ExportData {
+  version: string;
+  exportDate: string;
+  type: 'contact' | 'profile' | 'contacts';
+  data: Contact | UserProfile | Contact[];
+}
 
 export class ExportService {
   
@@ -47,91 +53,91 @@ export class ExportService {
     };
   }
 
-  // Export vers JSON
-  static async exportToJSON(contacts: Contact[]): Promise<string> {
-    const exportData = {
+  // Export to JSON (reusable format)
+  static exportToJSON(data: Contact | UserProfile | Contact[], type: 'contact' | 'profile' | 'contacts'): string {
+    const exportData: ExportData = {
+      version: '1.0.0',
       exportDate: new Date().toISOString(),
-      version: '1.0',
-      source: 'MyCrew React Native',
-      contacts: contacts.map(contact => this.contactToExportFormat(contact))
+      type,
+      data
     };
     
     return JSON.stringify(exportData, null, 2);
   }
 
-  // Export vers CSV
-  static async exportToCSV(contacts: Contact[]): Promise<string> {
+  // Export to CSV format (Excel compatible)
+  static exportToCSV(contacts: Contact[]): string {
+    if (contacts.length === 0) return '';
+    
     const headers = [
       'Nom',
-      'Métier', 
+      'Métier',
       'Téléphone',
       'Email',
-      'Notes',
-      'Favori',
-      'Pays principal',
-      'Région principale',
-      'Résident fiscal',
-      'Véhicule',
+      'Pays',
+      'Région',
+      'Résidence fiscale',
+      'Véhiculé',
       'Logé'
     ];
     
-    let csv = headers.join(',') + '\n';
-    
-    for (const contact of contacts) {
-      const primaryLocation = contact.locations.find(loc => loc.isPrimary) || contact.locations[0];
+    const rows = contacts.map(contact => {
+      const primaryLocation = contact.locations?.find(loc => loc.isPrimary) || contact.locations?.[0];
       
-      const row = [
-        this.escapeCsvValue(contact.name),
-        this.escapeCsvValue(contact.jobTitle),
-        this.escapeCsvValue(contact.phone),
-        this.escapeCsvValue(contact.email),
-        this.escapeCsvValue(contact.notes),
-        contact.isFavorite ? 'Oui' : 'Non',
-        primaryLocation ? this.escapeCsvValue(primaryLocation.country) : '',
-        primaryLocation ? this.escapeCsvValue(primaryLocation.region || '') : '',
-        primaryLocation ? (primaryLocation.isLocalResident ? 'Oui' : 'Non') : '',
-        primaryLocation ? (primaryLocation.hasVehicle ? 'Oui' : 'Non') : '',
-        primaryLocation ? (primaryLocation.isHoused ? 'Oui' : 'Non') : ''
+      return [
+        this.escapeCSV(contact.name),
+        this.escapeCSV(contact.jobTitle),
+        this.escapeCSV(contact.phone),
+        this.escapeCSV(contact.email),
+        this.escapeCSV(primaryLocation?.country || ''),
+        this.escapeCSV(primaryLocation?.region || ''),
+        primaryLocation?.isLocalResident ? 'Oui' : 'Non',
+        primaryLocation?.hasVehicle ? 'Oui' : 'Non',
+        primaryLocation?.isHoused ? 'Oui' : 'Non'
       ];
-      
-      csv += row.join(',') + '\n';
-    }
+    });
     
-    return csv;
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    // Add BOM for Excel UTF-8 compatibility
+    return '\uFEFF' + csvContent;
   }
 
-  // Export vers vCard
-  static async exportToVCard(contacts: Contact[]): Promise<string> {
-    let vcard = '';
+  // Export to readable text format
+  static exportToText(contacts: Contact[]): string {
+    if (contacts.length === 0) return 'Aucun contact à exporter';
     
-    for (const contact of contacts) {
-      vcard += 'BEGIN:VCARD\n';
-      vcard += 'VERSION:3.0\n';
-      vcard += `FN:${contact.name}\n`;
-      vcard += `ORG:${contact.jobTitle}\n`;
+    const textContent = contacts.map((contact, index) => {
+      const primaryLocation = contact.locations?.find(loc => loc.isPrimary) || contact.locations?.[0];
+      const attributes = [];
       
-      if (contact.phone) {
-        vcard += `TEL;TYPE=WORK:${contact.phone}\n`;
-      }
+      if (primaryLocation?.isLocalResident) attributes.push('Résidence fiscale');
+      if (primaryLocation?.hasVehicle) attributes.push('Véhiculé');
+      if (primaryLocation?.isHoused) attributes.push('Logé');
       
-      if (contact.email) {
-        vcard += `EMAIL;TYPE=WORK:${contact.email}\n`;
-      }
+      let contactText = `${index + 1}. ${contact.name}\n`;
+      contactText += `   Métier: ${contact.jobTitle}\n`;
+      contactText += `   Tél: ${contact.phone}\n`;
+      contactText += `   Email: ${contact.email}\n`;
       
-      if (contact.notes) {
-        vcard += `NOTE:${contact.notes.replace(/\n/g, '\\n')}\n`;
-      }
-      
-      // Ajouter la localisation principale comme adresse
-      const primaryLocation = contact.locations.find(loc => loc.isPrimary);
       if (primaryLocation) {
-        vcard += `ADR;TYPE=WORK:;;${primaryLocation.region || ''};${primaryLocation.country};;;;\n`;
+        contactText += `   Localisation: ${primaryLocation.region ? `${primaryLocation.region}, ` : ''}${primaryLocation.country}\n`;
       }
       
-      vcard += 'END:VCARD\n\n';
-    }
+      if (attributes.length > 0) {
+        contactText += `   Attributs: ${attributes.join(', ')}\n`;
+      }
+      
+      return contactText;
+    }).join('\n');
     
-    return vcard;
+    const header = `=== MYCREW - LISTE DES CONTACTS ===\n`;
+    const footer = `\n=== Exporté le ${new Date().toLocaleDateString('fr-FR')} ===`;
+    
+    return header + '\n' + textContent + footer;
   }
 
   // Exporter et partager
@@ -206,17 +212,99 @@ export class ExportService {
     await this.exportAndShare([contactVersion], format, `mycrew_profil_${profile.name.replace(/\s+/g, '_').toLowerCase()}`);
   }
 
-  // Utilitaire pour échapper les valeurs CSV
-  private static escapeCsvValue(value: string): string {
-    if (!value) return '';
+  // Export single contact for QR code
+  static exportContactForQR(contact: Contact): string {
+    const primaryLocation = contact.locations?.find(loc => loc.isPrimary) || contact.locations?.[0];
     
-    // Si la valeur contient une virgule, des guillemets ou un saut de ligne
+    // Compact format for QR code (to minimize data size)
+    const qrData = {
+      v: '1', // version
+      n: contact.name,
+      j: contact.jobTitle,
+      p: contact.phone,
+      e: contact.email,
+      l: primaryLocation ? {
+        c: primaryLocation.country,
+        r: primaryLocation.region,
+        lr: primaryLocation.isLocalResident ? 1 : 0,
+        v: primaryLocation.hasVehicle ? 1 : 0,
+        h: primaryLocation.isHoused ? 1 : 0
+      } : null,
+      // Removed notes and favorite status from QR export
+    };
+    
+    return JSON.stringify(qrData);
+  }
+  
+  // Export profile for QR code
+  static exportProfileForQR(profile: UserProfile): string {
+    const primaryLocation = profile.locations?.find(loc => loc.isPrimary) || profile.locations?.[0];
+    
+    const qrData = {
+      v: '1',
+      t: 'profile', // type
+      n: profile.name,
+      j: profile.jobTitle,
+      p: profile.phoneNumber,
+      e: profile.email,
+      l: primaryLocation ? {
+        c: primaryLocation.country,
+        r: primaryLocation.region,
+        lr: primaryLocation.isLocalResident ? 1 : 0,
+        v: primaryLocation.hasVehicle ? 1 : 0,
+        h: primaryLocation.isHoused ? 1 : 0
+      } : null
+    };
+    
+    return JSON.stringify(qrData);
+  }
+  
+  // Save and share file
+  static async saveAndShareFile(content: string, filename: string, mimeType: string): Promise<void> {
+    try {
+      const fileUri = FileSystem.documentDirectory + filename;
+      
+      await FileSystem.writeAsStringAsync(fileUri, content, {
+        encoding: FileSystem.EncodingType.UTF8
+      });
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType,
+          dialogTitle: 'Exporter les contacts'
+        });
+      } else {
+        throw new Error('Le partage n\'est pas disponible sur cet appareil');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      throw error;
+    }
+  }
+  
+  // Helper to escape CSV values
+  private static escapeCSV(value: string): string {
     if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-      // Échapper les guillemets en les doublant et entourer de guillemets
       return `"${value.replace(/"/g, '""')}"`;
     }
-    
     return value;
+  }
+  
+  // Generate filename with timestamp
+  static generateFilename(format: ExportFormat, type: 'contact' | 'profile' | 'contacts'): string {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const prefix = type === 'contacts' ? 'contacts' : type === 'profile' ? 'profil' : 'contact';
+    
+    switch (format) {
+      case 'json':
+        return `mycrew_${prefix}_${timestamp}.json`;
+      case 'csv':
+        return `mycrew_${prefix}_${timestamp}.csv`;
+      case 'text':
+        return `mycrew_${prefix}_${timestamp}.txt`;
+      default:
+        return `mycrew_${prefix}_${timestamp}.txt`;
+    }
   }
 
   // Obtenir les statistiques d'export
