@@ -1,7 +1,7 @@
 // MyCrew React Native - QR Code Service
 // Handles QR code generation and parsing for contact sharing
 
-import { Contact, UserProfile, QRContactData } from '../types';
+import { Contact, UserProfile, QRContactData, getContactFullName, getUserProfileFullName } from '../types';
 
 export class QRCodeService {
   private static readonly QR_TYPE = 'MyCrew_Contact';
@@ -13,7 +13,8 @@ export class QRCodeService {
       type: this.QR_TYPE,
       version: this.QR_VERSION,
       data: {
-        name: contact.name,
+        firstName: contact.firstName,
+        lastName: contact.lastName,
         jobTitle: contact.jobTitle,
         phone: contact.phone,
         email: contact.email,
@@ -38,7 +39,8 @@ export class QRCodeService {
       type: this.QR_TYPE,
       version: this.QR_VERSION,
       data: {
-        name: profile.name,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
         jobTitle: profile.jobTitle,
         phone: profile.phoneNumber,
         email: profile.email,
@@ -71,7 +73,8 @@ export class QRCodeService {
       // Convert to Contact object
       const contact: Contact = {
         id: `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: qrData.data.name || '',
+        firstName: qrData.data.firstName || '',
+        lastName: qrData.data.lastName || '',
         jobTitle: qrData.data.jobTitle || '',
         phone: qrData.data.phone || '',
         email: qrData.data.email || '',
@@ -110,7 +113,8 @@ export class QRCodeService {
       data.version === this.QR_VERSION &&
       data.data &&
       typeof data.data === 'object' &&
-      typeof data.data.name === 'string' &&
+      typeof data.data.firstName === 'string' &&
+      typeof data.data.lastName === 'string' &&
       typeof data.data.jobTitle === 'string' &&
       typeof data.data.phone === 'string' &&
       typeof data.data.email === 'string'
@@ -122,7 +126,7 @@ export class QRCodeService {
     const primaryLocation = contact.locations.find(loc => loc.isPrimary);
     const city = primaryLocation?.region || primaryLocation?.country || '';
     
-    let card = `${contact.name}\n`;
+    let card = `${getContactFullName(contact)}\n`;
     card += `${contact.jobTitle}\n`;
     
     if (city) {
@@ -151,7 +155,7 @@ export class QRCodeService {
     const primaryLocation = profile.locations.find(loc => loc.isPrimary);
     const city = primaryLocation?.region || primaryLocation?.country || '';
     
-    let card = `${profile.name}\n`;
+    let card = `${getUserProfileFullName(profile)}\n`;
     card += `${profile.jobTitle}\n`;
     
     if (city) {
@@ -191,7 +195,7 @@ export class QRCodeService {
       }
 
       return {
-        name: data.data.name || 'Nom inconnu',
+        name: `${data.data.firstName} ${data.data.lastName}`.trim() || 'Nom inconnu',
         jobTitle: data.data.jobTitle || 'Métier non spécifié',
         isValid: true
       };

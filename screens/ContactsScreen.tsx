@@ -28,6 +28,7 @@ import { Contact, UserProfile, RootStackParamList, getContactFullName, getUserPr
 import { FILM_DEPARTMENTS } from '../data/JobTitles';
 import { COUNTRIES_WITH_REGIONS } from '../data/Locations';
 import ExportModal from '../components/ExportModal';
+import QRCodeDisplay from '../components/QRCodeDisplay';
 import { ImportService } from '../services/ImportService';
 
 const { width, height } = Dimensions.get('window');
@@ -170,7 +171,6 @@ interface QRModalProps {
 }
 
 function QRModal({ visible, onClose, profile, contact }: QRModalProps) {
-  const displayData = contact || profile;
   const title = contact ? 'QR Code Contact' : 'Mon QR Code';
   
   return (
@@ -190,19 +190,15 @@ function QRModal({ visible, onClose, profile, contact }: QRModalProps) {
             </TouchableOpacity>
           </View>
           
-          <View style={styles.qrCodeContainer}>
-            <View style={styles.fakeQRCode}>
-              <Ionicons name="qr-code" size={120} color={MyCrewColors.accent} />
-              <Text style={styles.qrPlaceholder}>QR Code à venir</Text>
-            </View>
-          </View>
-          
-          {displayData && (
-            <View style={styles.qrModalInfo}>
-              <Text style={styles.qrModalName}>{displayData.name}</Text>
-              <Text style={styles.qrModalJob}>{displayData.jobTitle}</Text>
-            </View>
-          )}
+          <ScrollView contentContainerStyle={styles.qrScrollContent} showsVerticalScrollIndicator={false}>
+            <QRCodeDisplay 
+              contact={contact || undefined}
+              profile={profile || undefined}
+              size={200}
+              showTitle={false}
+              showDebugInfo={false}
+            />
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -1123,6 +1119,7 @@ export default function ContactsScreen() {
           type={exportType}
         />
       )}
+
     </SafeAreaView>
   );
 }
@@ -1364,37 +1361,9 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: Spacing.sm,
   },
-  qrCodeContainer: {
+  qrScrollContent: {
     alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  fakeQRCode: {
-    width: 200,
-    height: 200,
-    backgroundColor: MyCrewColors.cardBackground,
-    borderRadius: BorderRadius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: MyCrewColors.border,
-  },
-  qrPlaceholder: {
-    fontSize: Typography.small,
-    color: MyCrewColors.textSecondary,
-    marginTop: Spacing.sm,
-  },
-  qrModalInfo: {
-    alignItems: 'center',
-  },
-  qrModalName: {
-    fontSize: Typography.headline,
-    fontWeight: '600',
-    color: MyCrewColors.textPrimary,
-    marginBottom: Spacing.xs,
-  },
-  qrModalJob: {
-    fontSize: Typography.body,
-    color: MyCrewColors.textSecondary,
+    paddingVertical: Spacing.sm,
   },
   
   // Section headers
