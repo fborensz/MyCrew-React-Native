@@ -16,6 +16,7 @@ import {
   Modal,
   Dimensions,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -89,7 +90,7 @@ function ContactRow({ contact, onPress, onQRPress }: ContactRowProps) {
             <Ionicons 
               name="star" 
               size={16} 
-              color={MyCrewColors.accent} 
+              color="#FFD700" 
               style={styles.favoriteIcon}
             />
           )}
@@ -130,7 +131,6 @@ function ProfileCard({ profile, onPress, onQRPress }: ProfileCardProps) {
     return (
       <TouchableOpacity style={styles.profileCard} onPress={onPress}>
         <View style={styles.profileContent}>
-          <Text style={styles.profileLabel}>MON PROFIL</Text>
           <Text style={styles.profileEmpty}>Créer mon profil</Text>
         </View>
         <TouchableOpacity style={styles.profileQRButton} onPress={onQRPress}>
@@ -140,16 +140,11 @@ function ProfileCard({ profile, onPress, onQRPress }: ProfileCardProps) {
     );
   }
 
-  const primaryLocation = profile.locations.find(loc => loc.isPrimary);
-  const location = primaryLocation?.region || primaryLocation?.country || '';
-
   return (
     <TouchableOpacity style={styles.profileCard} onPress={onPress}>
       <View style={styles.profileContent}>
-        <Text style={styles.profileLabel}>MON PROFIL</Text>
         <Text style={styles.profileName}>{profile.name}</Text>
         <Text style={styles.profileJob}>{profile.jobTitle}</Text>
-        {location && <Text style={styles.profileLocation}>{location}</Text>}
       </View>
       <TouchableOpacity style={styles.profileQRButton} onPress={onQRPress}>
         <Ionicons name="qr-code" size={28} color={MyCrewColors.background} />
@@ -317,6 +312,17 @@ export default function ContactsScreen() {
         onQRPress={handleProfileQRPress}
       />
       
+      {/* Titre de section et bouton ajouter */}
+      <View style={styles.contactsHeaderContainer}>
+        <Text style={styles.contactsTitle}>Mes Contacts</Text>
+        <TouchableOpacity 
+          style={styles.addContactButton}
+          onPress={() => navigation.navigate('AddContact' as never)}
+        >
+          <Ionicons name="add" size={24} color={MyCrewColors.accent} />
+        </TouchableOpacity>
+      </View>
+      
       {/* Barre de recherche */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
@@ -336,22 +342,6 @@ export default function ContactsScreen() {
         </View>
       </View>
       
-      {/* Header de la liste */}
-      <View style={styles.listHeader}>
-        <Text style={styles.listTitle}>
-          {filteredContacts.length > 0 
-            ? `${filteredContacts.length} contact${filteredContacts.length > 1 ? 's' : ''}`
-            : 'Aucun contact'
-          }
-        </Text>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => navigation.navigate('AddContact' as never)}
-        >
-          <Ionicons name="add" size={20} color={MyCrewColors.accent} />
-          <Text style={styles.addButtonText}>Nouveau</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 
@@ -359,9 +349,15 @@ export default function ContactsScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={MyCrewColors.background} />
       
-      {/* Titre MyCrew */}
+      {/* Header avec logo et tagline */}
       <View style={styles.titleContainer}>
-        <Text style={styles.screenTitle}>MyCrew</Text>
+        <View style={styles.logoContainer}>
+          <Image source={require('../assets/images/logo.png')} style={styles.logoImage} />
+          <View style={styles.titleTextContainer}>
+            <Text style={styles.logoText}>MyCrew</Text>
+            <Text style={styles.tagline}>Trouvez, contactez, tournez</Text>
+          </View>
+        </View>
       </View>
 
       <FlatList
@@ -410,13 +406,29 @@ const styles = StyleSheet.create({
   titleContainer: {
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: MyCrewColors.border,
   },
-  screenTitle: {
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  logoImage: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
+  },
+  titleTextContainer: {
+    flexDirection: 'column',
+  },
+  logoText: {
     fontSize: Typography.largeTitle,
     fontWeight: '700',
     color: MyCrewColors.textPrimary,
+  },
+  tagline: {
+    fontSize: Typography.small,
+    color: MyCrewColors.textSecondary,
+    fontStyle: 'italic',
   },
   listContent: {
     paddingBottom: 100, // Espace pour le bouton flottant
@@ -435,14 +447,6 @@ const styles = StyleSheet.create({
   profileContent: {
     flex: 1,
   },
-  profileLabel: {
-    fontSize: Typography.small,
-    fontWeight: '600',
-    color: MyCrewColors.background,
-    opacity: 0.9,
-    marginBottom: Spacing.xs,
-    letterSpacing: 1,
-  },
   profileName: {
     fontSize: Typography.title,
     fontWeight: '700',
@@ -455,11 +459,6 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     marginBottom: Spacing.xs,
   },
-  profileLocation: {
-    fontSize: Typography.body,
-    color: MyCrewColors.background,
-    opacity: 0.8,
-  },
   profileEmpty: {
     fontSize: Typography.subheadline,
     color: MyCrewColors.background,
@@ -467,6 +466,24 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   profileQRButton: {
+    padding: Spacing.sm,
+  },
+  
+  // Header des contacts
+  contactsHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  contactsTitle: {
+    fontSize: Typography.title,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
+  },
+  addContactButton: {
     padding: Spacing.sm,
   },
   
@@ -491,29 +508,6 @@ const styles = StyleSheet.create({
     color: MyCrewColors.textPrimary,
   },
   
-  // Header de liste
-  listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  listTitle: {
-    fontSize: Typography.subheadline,
-    fontWeight: '600',
-    color: MyCrewColors.textSecondary,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  addButtonText: {
-    fontSize: Typography.body,
-    fontWeight: '600',
-    color: MyCrewColors.accent,
-  },
   
   // Lignes de contact
   contactRow: {
