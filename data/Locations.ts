@@ -291,3 +291,9 @@ export const getCitiesForRegion = (countryName: string, regionName: string): str
 
 // Get all country names
 export const COUNTRY_NAMES = COUNTRIES.map(country => country.name);
+
+// Create COUNTRIES_WITH_REGIONS structure for easy access
+export const COUNTRIES_WITH_REGIONS: Record<string, string[]> = COUNTRIES.reduce((acc, country) => {
+  acc[country.name] = country.regions?.map(region => region.name) || [];
+  return acc;
+}, {} as Record<string, string[]>);

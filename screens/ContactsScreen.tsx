@@ -17,6 +17,7 @@ import {
   Dimensions,
   SafeAreaView,
   Image,
+  ScrollView,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { DatabaseService } from '../services/DatabaseService';
 import { MyCrewColors } from '../constants/Colors';
 import { Contact, UserProfile, RootStackParamList } from '../types';
+import { FILM_DEPARTMENTS } from '../data/JobTitles';
+import { COUNTRIES_WITH_REGIONS } from '../data/Locations';
 
 const { width, height } = Dimensions.get('window');
 
@@ -76,7 +79,9 @@ interface ContactRowProps {
 }
 
 function ContactRow({ contact, onPress, onQRPress }: ContactRowProps) {
-  const primaryLocation = contact.locations.find(loc => loc.isPrimary);
+  const primaryLocation = contact.locations && contact.locations.length > 0 
+    ? contact.locations.find(loc => loc.isPrimary) 
+    : null;
   const city = primaryLocation?.region || primaryLocation?.country || '';
 
   return (
@@ -202,6 +207,300 @@ function QRModal({ visible, onClose, profile, contact }: QRModalProps) {
   );
 }
 
+interface FilterModalProps {
+  visible: boolean;
+  onClose: () => void;
+  activeFilters: {
+    jobs: string[];
+    countries: string[];
+    regions: string[];
+    isHoused: boolean;
+    isLocalResident: boolean;
+    hasVehicle: boolean;
+  };
+  onApplyFilters: (filters: any) => void;
+  onClearFilters: () => void;
+}
+
+function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearFilters }: FilterModalProps) {
+  const [tempFilters, setTempFilters] = useState(activeFilters);
+  
+  useEffect(() => {
+    setTempFilters(activeFilters);
+  }, [activeFilters, visible]);
+
+  useEffect(() => {
+    console.log('FilterModal visible:', visible);
+  }, [visible]);
+
+  const allJobs = React.useMemo(() => {
+    try {
+      if (FILM_DEPARTMENTS && FILM_DEPARTMENTS.length > 0) {
+        return FILM_DEPARTMENTS.flatMap(dept => dept.jobs);
+      }
+      // Fallback data if import fails
+      return [
+        'Réalisateur', 'Chef opérateur', 'Cadreur', 'Ingénieur du Son', 'Chef Décorateur',
+        '1er Assistant Réalisateur', 'Script', 'Monteur', 'Producteur', 'Régisseur Général',
+        'Chef Électro (Gaffer)', 'Maquilleuse', 'Costumière', 'Chef Machiniste',
+        'Assistante Réalisatrice', 'Directeur Photo', 'Perchman', 'Monteuse Son', 'Étalonneur'
+      ];
+    } catch (error) {
+      console.error('Error loading jobs:', error);
+      return ['Réalisateur', 'Chef opérateur', 'Cadreur', 'Ingénieur du Son', 'Chef Décorateur'];
+    }
+  }, []);
+
+  const allCountries = React.useMemo(() => {
+    try {
+      if (COUNTRIES_WITH_REGIONS && Object.keys(COUNTRIES_WITH_REGIONS).length > 0) {
+        return Object.keys(COUNTRIES_WITH_REGIONS);
+      }
+      // Fallback data if import fails
+      return ['France', 'Belgique', 'Suisse', 'Canada', 'États-Unis', 'Royaume-Uni'];
+    } catch (error) {
+      console.error('Error loading countries:', error);
+      return ['France', 'Belgique', 'Suisse'];
+    }
+  }, []);
+
+  const availableRegions = React.useMemo(() => {
+    try {
+      if (tempFilters.countries.includes('France') && COUNTRIES_WITH_REGIONS && COUNTRIES_WITH_REGIONS['France']) {
+        return COUNTRIES_WITH_REGIONS['France'];
+      }
+      // Fallback French regions if import fails
+      if (tempFilters.countries.includes('France')) {
+        return [
+          'Île-de-France', 'Provence-Alpes-Côte d\'Azur', 'Auvergne-Rhône-Alpes',
+          'Nouvelle-Aquitaine', 'Occitanie', 'Hauts-de-France', 'Grand Est',
+          'Pays de la Loire', 'Bretagne', 'Normandie', 'Centre-Val de Loire'
+        ];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error loading regions:', error);
+      return [];
+    }
+  }, [tempFilters.countries]);
+
+  const toggleJobFilter = (job: string) => {
+    setTempFilters(prev => ({
+      ...prev,
+      jobs: prev.jobs.includes(job)
+        ? prev.jobs.filter(j => j !== job)
+        : [...prev.jobs, job]
+    }));
+  };
+
+  const toggleCountryFilter = (country: string) => {
+    setTempFilters(prev => {
+      const newCountries = prev.countries.includes(country)
+        ? prev.countries.filter(c => c !== country)
+        : [...prev.countries, country];
+      
+      // Clear regions if France is deselected
+      const newRegions = country === 'France' && !newCountries.includes('France')
+        ? []
+        : prev.regions;
+
+      return {
+        ...prev,
+        countries: newCountries,
+        regions: newRegions
+      };
+    });
+  };
+
+  const toggleRegionFilter = (region: string) => {
+    setTempFilters(prev => ({
+      ...prev,
+      regions: prev.regions.includes(region)
+        ? prev.regions.filter(r => r !== region)
+        : [...prev.regions, region]
+    }));
+  };
+
+  const toggleAttributeFilter = (attribute: 'isHoused' | 'isLocalResident' | 'hasVehicle') => {
+    setTempFilters(prev => ({
+      ...prev,
+      [attribute]: !prev[attribute]
+    }));
+  };
+
+  const handleApply = () => {
+    onApplyFilters(tempFilters);
+    onClose();
+  };
+
+  const handleClear = () => {
+    const clearedFilters = {
+      jobs: [],
+      countries: [],
+      regions: [],
+      isHoused: false,
+      isLocalResident: false,
+      hasVehicle: false,
+    };
+    setTempFilters(clearedFilters);
+    onClearFilters();
+    onClose();
+  };
+
+  if (!visible) {
+    return null;
+  }
+
+  console.log('FilterModal rendering with allJobs:', allJobs.length, 'allCountries:', allCountries.length);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.filterModalOverlay}>
+        <View style={styles.filterModalContent}>
+          {/* Header */}
+          <View style={styles.filterModalHeader}>
+            <Text style={styles.filterModalTitle}>Filtres de recherche</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Content */}
+          <ScrollView style={styles.filterModalBody} showsVerticalScrollIndicator={false}>
+            {/* Jobs Section */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Métiers</Text>
+              <View style={styles.filterList}>
+                {allJobs.map((job) => (
+                  <TouchableOpacity
+                    key={job}
+                    style={styles.filterListItem}
+                    onPress={() => toggleJobFilter(job)}
+                  >
+                    <Ionicons
+                      name={tempFilters.jobs.includes(job) ? 'checkbox' : 'square-outline'}
+                      size={20}
+                      color={tempFilters.jobs.includes(job) ? MyCrewColors.accent : MyCrewColors.iconMuted}
+                    />
+                    <Text style={styles.filterListText}>{job}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Countries Section */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Pays ({allCountries.length})</Text>
+              <View style={styles.filterGrid}>
+                {allCountries.map((country) => (
+                  <TouchableOpacity
+                    key={country}
+                    style={[
+                      styles.filterChip,
+                      tempFilters.countries.includes(country) && styles.filterChipActive
+                    ]}
+                    onPress={() => toggleCountryFilter(country)}
+                  >
+                    <Text style={[
+                      styles.filterChipText,
+                      tempFilters.countries.includes(country) && styles.filterChipTextActive
+                    ]}>
+                      {country}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Regions Section (only if France is selected) */}
+            {tempFilters.countries.includes('France') && (
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Régions françaises</Text>
+                <View style={styles.filterGrid}>
+                  {availableRegions.map((region) => (
+                    <TouchableOpacity
+                      key={region}
+                      style={[
+                        styles.filterChip,
+                        tempFilters.regions.includes(region) && styles.filterChipActive
+                      ]}
+                      onPress={() => toggleRegionFilter(region)}
+                    >
+                      <Text style={[
+                        styles.filterChipText,
+                        tempFilters.regions.includes(region) && styles.filterChipTextActive
+                      ]}>
+                        {region}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Attributes Section */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Attributs</Text>
+              <View style={styles.attributesContainer}>
+                <TouchableOpacity
+                  style={styles.attributeRow}
+                  onPress={() => toggleAttributeFilter('isLocalResident')}
+                >
+                  <Ionicons
+                    name={tempFilters.isLocalResident ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={tempFilters.isLocalResident ? MyCrewColors.accent : MyCrewColors.iconMuted}
+                  />
+                  <Text style={styles.attributeText}>Résidence fiscale</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.attributeRow}
+                  onPress={() => toggleAttributeFilter('hasVehicle')}
+                >
+                  <Ionicons
+                    name={tempFilters.hasVehicle ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={tempFilters.hasVehicle ? MyCrewColors.accent : MyCrewColors.iconMuted}
+                  />
+                  <Text style={styles.attributeText}>Véhiculé</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.attributeRow}
+                  onPress={() => toggleAttributeFilter('isHoused')}
+                >
+                  <Ionicons
+                    name={tempFilters.isHoused ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={tempFilters.isHoused ? MyCrewColors.accent : MyCrewColors.iconMuted}
+                  />
+                  <Text style={styles.attributeText}>Logé sur place</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Footer */}
+          <View style={styles.filterModalFooter}>
+            <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
+              <Text style={styles.clearButtonText}>Supprimer filtres</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
+              <Text style={styles.applyButtonText}>Valider</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function ContactsScreen() {
   const navigation = useNavigation();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -212,6 +511,21 @@ export default function ContactsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
+  
+  useEffect(() => {
+    console.log('showFiltersModal state changed:', showFiltersModal);
+  }, [showFiltersModal]);
+  
+  // Filter states
+  const [activeFilters, setActiveFilters] = useState({
+    jobs: [] as string[],
+    countries: [] as string[],
+    regions: [] as string[],
+    isHoused: false,
+    isLocalResident: false,
+    hasVehicle: false,
+  });
   
   // Animation pour le bouton paramètres
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -246,20 +560,75 @@ export default function ContactsScreen() {
     }
   };
 
-  const searchContacts = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setFilteredContacts(contacts);
-      return;
+  const searchAndFilterContacts = useCallback((query: string, filters: typeof activeFilters) => {
+    let results = [...contacts];
+    
+    // Apply text search
+    if (query.trim()) {
+      const searchLower = query.toLowerCase();
+      results = results.filter(contact => {
+        try {
+          return (
+            (contact.name && contact.name.toLowerCase().includes(searchLower)) ||
+            (contact.jobTitle && contact.jobTitle.toLowerCase().includes(searchLower)) ||
+            (contact.phone && contact.phone.includes(query)) ||
+            (contact.email && contact.email.toLowerCase().includes(searchLower)) ||
+            (contact.locations && contact.locations.length > 0 && 
+             contact.locations.some(loc => 
+               (loc.country && loc.country.toLowerCase().includes(searchLower)) ||
+               (loc.region && loc.region.toLowerCase().includes(searchLower))
+             ))
+          );
+        } catch (error) {
+          console.error('Search filter error:', error);
+          return false;
+        }
+      });
     }
-
-    try {
-      const db = DatabaseService.getInstance();
-      const results = await db.searchContacts(query);
-      setFilteredContacts(results);
-    } catch (error) {
-      console.error('Error searching contacts:', error);
-      setFilteredContacts([]);
+    
+    // Apply filters
+    if (filters.jobs.length > 0) {
+      results = results.filter(contact => filters.jobs.includes(contact.jobTitle));
     }
+    
+    if (filters.countries.length > 0) {
+      results = results.filter(contact => 
+        contact.locations && contact.locations.length > 0 && 
+        contact.locations.some(loc => filters.countries.includes(loc.country))
+      );
+    }
+    
+    if (filters.regions.length > 0) {
+      results = results.filter(contact => 
+        contact.locations && contact.locations.length > 0 && 
+        contact.locations.some(loc => 
+          loc.region && filters.regions.includes(loc.region)
+        )
+      );
+    }
+    
+    if (filters.isHoused) {
+      results = results.filter(contact => 
+        contact.locations && contact.locations.length > 0 && 
+        contact.locations.some(loc => loc.isHoused)
+      );
+    }
+    
+    if (filters.isLocalResident) {
+      results = results.filter(contact => 
+        contact.locations && contact.locations.length > 0 && 
+        contact.locations.some(loc => loc.isLocalResident)
+      );
+    }
+    
+    if (filters.hasVehicle) {
+      results = results.filter(contact => 
+        contact.locations && contact.locations.length > 0 && 
+        contact.locations.some(loc => loc.hasVehicle)
+      );
+    }
+    
+    setFilteredContacts(results);
   }, [contacts]);
 
   const onRefresh = useCallback(() => {
@@ -274,10 +643,10 @@ export default function ContactsScreen() {
     }, [])
   );
 
-  // Effet pour la recherche
+  // Effet pour la recherche et le filtrage
   useEffect(() => {
-    searchContacts(searchText);
-  }, [searchText, searchContacts]);
+    searchAndFilterContacts(searchText, activeFilters);
+  }, [searchText, activeFilters, searchAndFilterContacts]);
 
   const handleContactPress = (contact: Contact) => {
     navigation.navigate('ContactDetail' as never, { contactId: contact.id } as never);
@@ -307,6 +676,45 @@ export default function ContactsScreen() {
 
   const handleSettingsPress = () => {
     navigation.navigate('Settings' as never);
+  };
+
+  const handleApplyFilters = (filters: typeof activeFilters) => {
+    setActiveFilters(filters);
+  };
+
+  const handleClearFilters = () => {
+    setActiveFilters({
+      jobs: [],
+      countries: [],
+      regions: [],
+      isHoused: false,
+      isLocalResident: false,
+      hasVehicle: false,
+    });
+  };
+
+  const removeFilter = (type: string, value?: string) => {
+    setActiveFilters(prev => {
+      switch (type) {
+        case 'job':
+          return { ...prev, jobs: prev.jobs.filter(j => j !== value) };
+        case 'country':
+          const newCountries = prev.countries.filter(c => c !== value);
+          // Clear regions if France is removed
+          const newRegions = value === 'France' ? [] : prev.regions;
+          return { ...prev, countries: newCountries, regions: newRegions };
+        case 'region':
+          return { ...prev, regions: prev.regions.filter(r => r !== value) };
+        case 'isHoused':
+          return { ...prev, isHoused: false };
+        case 'isLocalResident':
+          return { ...prev, isLocalResident: false };
+        case 'hasVehicle':
+          return { ...prev, hasVehicle: false };
+        default:
+          return prev;
+      }
+    });
   };
 
   // Group contacts by first letter
@@ -366,7 +774,15 @@ export default function ContactsScreen() {
       {/* Barre de recherche */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color={MyCrewColors.iconMuted} />
+          <TouchableOpacity 
+            onPress={() => {
+              console.log('Filter button pressed');
+              setShowFiltersModal(true);
+            }} 
+            style={styles.filterButton}
+          >
+            <Ionicons name="options" size={20} color={MyCrewColors.iconMuted} />
+          </TouchableOpacity>
           <TextInput
             style={styles.searchInput}
             placeholder="Rechercher un contact..."
@@ -381,6 +797,82 @@ export default function ContactsScreen() {
           )}
         </View>
       </View>
+      
+      {/* Filtres actifs */}
+      {(activeFilters.jobs.length > 0 || 
+        activeFilters.countries.length > 0 || 
+        activeFilters.regions.length > 0 || 
+        activeFilters.isHoused || 
+        activeFilters.isLocalResident || 
+        activeFilters.hasVehicle) && (
+        <View style={styles.activeFiltersContainer}>
+          <Text style={styles.activeFiltersTitle}>Filtres actifs :</Text>
+          <View style={styles.activeFiltersRow}>
+            {activeFilters.jobs.map(job => (
+              <TouchableOpacity
+                key={job}
+                style={styles.activeFilterChip}
+                onPress={() => removeFilter('job', job)}
+              >
+                <Text style={styles.activeFilterText}>{job}</Text>
+                <Ionicons name="close" size={14} color={MyCrewColors.background} />
+              </TouchableOpacity>
+            ))}
+            
+            {activeFilters.countries.map(country => (
+              <TouchableOpacity
+                key={country}
+                style={styles.activeFilterChip}
+                onPress={() => removeFilter('country', country)}
+              >
+                <Text style={styles.activeFilterText}>{country}</Text>
+                <Ionicons name="close" size={14} color={MyCrewColors.background} />
+              </TouchableOpacity>
+            ))}
+            
+            {activeFilters.regions.map(region => (
+              <TouchableOpacity
+                key={region}
+                style={styles.activeFilterChip}
+                onPress={() => removeFilter('region', region)}
+              >
+                <Text style={styles.activeFilterText}>{region}</Text>
+                <Ionicons name="close" size={14} color={MyCrewColors.background} />
+              </TouchableOpacity>
+            ))}
+            
+            {activeFilters.isLocalResident && (
+              <TouchableOpacity
+                style={styles.activeFilterChip}
+                onPress={() => removeFilter('isLocalResident')}
+              >
+                <Text style={styles.activeFilterText}>Résidence fiscale</Text>
+                <Ionicons name="close" size={14} color={MyCrewColors.background} />
+              </TouchableOpacity>
+            )}
+            
+            {activeFilters.hasVehicle && (
+              <TouchableOpacity
+                style={styles.activeFilterChip}
+                onPress={() => removeFilter('hasVehicle')}
+              >
+                <Text style={styles.activeFilterText}>Véhiculé</Text>
+                <Ionicons name="close" size={14} color={MyCrewColors.background} />
+              </TouchableOpacity>
+            )}
+            
+            {activeFilters.isHoused && (
+              <TouchableOpacity
+                style={styles.activeFilterChip}
+                onPress={() => removeFilter('isHoused')}
+              >
+                <Text style={styles.activeFilterText}>Logé</Text>
+                <Ionicons name="close" size={14} color={MyCrewColors.background} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
       
     </View>
   );
@@ -439,6 +931,15 @@ export default function ContactsScreen() {
         }}
         profile={profile}
         contact={selectedContact}
+      />
+
+      {/* Modal Filtres */}
+      <FilterModal
+        visible={showFiltersModal}
+        onClose={() => setShowFiltersModal(false)}
+        activeFilters={activeFilters}
+        onApplyFilters={handleApplyFilters}
+        onClearFilters={handleClearFilters}
       />
     </SafeAreaView>
   );
@@ -544,6 +1045,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     gap: Spacing.md,
     ...Shadows.small,
+  },
+  filterButton: {
+    padding: Spacing.xs,
   },
   searchInput: {
     flex: 1,
@@ -688,5 +1192,154 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: MyCrewColors.iconMuted,
     letterSpacing: 1,
+  },
+  
+  // Active filters
+  activeFiltersContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  activeFiltersTitle: {
+    fontSize: Typography.small,
+    fontWeight: '600',
+    color: MyCrewColors.textSecondary,
+    marginBottom: Spacing.xs,
+  },
+  activeFiltersRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  activeFilterChip: {
+    backgroundColor: MyCrewColors.accent,
+    borderRadius: BorderRadius.xl,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  activeFilterText: {
+    fontSize: Typography.small,
+    color: MyCrewColors.background,
+    fontWeight: '500',
+  },
+  
+  // Filter modal
+  filterModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  filterModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    maxHeight: height * 0.85,
+    minHeight: height * 0.6,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: MyCrewColors.border,
+  },
+  filterModalTitle: {
+    fontSize: Typography.title,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
+  },
+  filterModalBody: {
+    flex: 1,
+    paddingHorizontal: Spacing.xl,
+  },
+  filterSection: {
+    marginBottom: Spacing.xl,
+  },
+  filterSectionTitle: {
+    fontSize: Typography.subheadline,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
+    marginBottom: Spacing.md,
+  },
+  filterGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  filterChip: {
+    backgroundColor: MyCrewColors.cardBackground,
+    borderWidth: 1,
+    borderColor: MyCrewColors.border,
+    borderRadius: BorderRadius.xl,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  filterChipActive: {
+    backgroundColor: MyCrewColors.accent,
+    borderColor: MyCrewColors.accent,
+  },
+  filterChipText: {
+    fontSize: Typography.small,
+    color: MyCrewColors.textPrimary,
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: MyCrewColors.background,
+  },
+  attributesContainer: {
+    gap: Spacing.md,
+  },
+  attributeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  attributeText: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textPrimary,
+  },
+  filterModalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: MyCrewColors.border,
+    gap: Spacing.md,
+  },
+  clearButton: {
+    flex: 1,
+    backgroundColor: MyCrewColors.cardBackground,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    fontSize: Typography.body,
+    fontWeight: '600',
+    color: MyCrewColors.textSecondary,
+  },
+  applyButton: {
+    flex: 1,
+    backgroundColor: MyCrewColors.accent,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    fontSize: Typography.body,
+    fontWeight: '600',
+    color: MyCrewColors.background,
   },
 });
