@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "MyCrew",
+    "slug": "mycrew",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "mycrew",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F1F6F3"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Cette app utilise la caméra pour scanner des codes QR et partager des contacts.",
+        "NSPhotoLibraryUsageDescription": "Cette app accède à la galerie pour partager des codes QR."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#F1F6F3"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-barcode-scanner",
+        {
+          "cameraPermission": "Permettre à MyCrew d'accéder à votre caméra pour scanner les codes QR."
+        }
+      ],
+      "expo-sqlite"
+    ]
+  }
+}
