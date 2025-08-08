@@ -27,6 +27,30 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
     loadContact();
   }, [contactId]);
 
+  // Configurer les boutons header - TOUJOURS appelé (même en loading/error)
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            onPress={handleEdit} 
+            style={[styles.headerButton, !contact && styles.headerButtonDisabled]}
+            disabled={!contact}
+          >
+            <Ionicons name="create-outline" size={24} color={!contact ? MyCrewColors.iconMuted : MyCrewColors.textPrimary} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={handleQRCode} 
+            style={[styles.headerButton, !contact && styles.headerButtonDisabled]}
+            disabled={!contact}
+          >
+            <Ionicons name="qr-code-outline" size={24} color={!contact ? MyCrewColors.iconMuted : MyCrewColors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+      ),
+    });
+  }, [navigation, contact]);
+
   const loadContact = async () => {
     try {
       const db = DatabaseService.getInstance();
@@ -125,20 +149,6 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
     );
   }
 
-  React.useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <View style={styles.headerButtons}>
-          <TouchableOpacity onPress={handleEdit} style={styles.headerButton}>
-            <Ionicons name="create-outline" size={24} color={MyCrewColors.textPrimary} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleQRCode} style={styles.headerButton}>
-            <Ionicons name="qr-code-outline" size={24} color={MyCrewColors.textPrimary} />
-          </TouchableOpacity>
-        </View>
-      ),
-    });
-  }, [navigation, contact]);
 
   const primaryLocation = contact.locations.find(loc => loc.isPrimary);
   const secondaryLocations = contact.locations.filter(loc => !loc.isPrimary);
@@ -300,6 +310,9 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     marginLeft: Spacing.md,
+  },
+  headerButtonDisabled: {
+    opacity: 0.5,
   },
   header: {
     padding: Spacing.lg,
