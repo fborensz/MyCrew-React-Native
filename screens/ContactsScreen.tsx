@@ -617,10 +617,10 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
 export default function ContactsScreen() {
   const navigation = useNavigation();
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [searchText, setSearchText] = useState('');
   const searchInputRef = useRef<TextInput>(null);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -634,14 +634,25 @@ export default function ContactsScreen() {
     console.log('showFiltersModal state changed:', showFiltersModal);
   }, [showFiltersModal]);
 
-  // Fonction de recherche avec micro-délai pour éviter les conflits
+  // Fonction de recherche optimisée pour maintenir le focus
   const handleSearchChange = useCallback((text: string) => {
-    console.log('Search text changed to:', text);
-    // Utiliser setTimeout pour décaler la mise à jour et éviter les conflits
-    setTimeout(() => {
-      setSearchText(text);
-    }, 0);
+    setSearchText(text);
   }, []);
+
+  const handleSearchFocus = useCallback(() => {
+    setIsSearchFocused(true);
+  }, []);
+
+  const handleSearchBlur = useCallback(() => {
+    setIsSearchFocused(false);
+  }, []);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchText('');
+    searchInputRef.current?.focus();
+  }, []);
+
+  const keyExtractor = useCallback((item: Contact) => item.id, []);
   
   // Filter states
   const [activeFilters, setActiveFilters] = useState({
@@ -676,7 +687,6 @@ export default function ContactsScreen() {
       ]);
       
       setContacts(contactsData);
-      setFilteredContacts(contactsData);
       setProfile(userProfile);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -700,20 +710,20 @@ export default function ContactsScreen() {
     }, [])
   );
 
-  // Mémorisation des contacts filtrés pour éviter les conflits d'état
-  const filteredContactsMemo = useMemo(() => {
-    let results = [...contacts];
+  // Filtrage et groupement des contacts optimisés
+  const contactSections = useMemo(() => {
+    let filteredResults = [...contacts];
     
     // Recherche textuelle simple
     if (searchText.trim()) {
-      const searchLower = searchText.toLowerCase();
-      results = results.filter(contact => {
+      const searchLower = searchText.toLowerCase().trim();
+      filteredResults = filteredResults.filter(contact => {
         try {
           const fullName = getContactFullName(contact);
           return (
             fullName.toLowerCase().includes(searchLower) ||
             (contact.jobTitle && contact.jobTitle.toLowerCase().includes(searchLower)) ||
-            (contact.phone && contact.phone.includes(searchText)) ||
+            (contact.phone && contact.phone.includes(searchText.trim())) ||
             (contact.email && contact.email.toLowerCase().includes(searchLower))
           );
         } catch (error) {
@@ -722,14 +732,27 @@ export default function ContactsScreen() {
         }
       });
     }
-    
-    return results;
-  }, [contacts, searchText]);
 
-  // Mise à jour de filteredContacts seulement quand nécessaire
-  useEffect(() => {
-    setFilteredContacts(filteredContactsMemo);
-  }, [filteredContactsMemo]);
+    // Groupement par lettre directement dans le useMemo
+    const grouped = filteredResults.reduce((acc, contact) => {
+      const firstLetter = contact.lastName.charAt(0).toUpperCase();
+      if (!acc[firstLetter]) {
+        acc[firstLetter] = [];
+      }
+      acc[firstLetter].push(contact);
+      return acc;
+    }, {} as Record<string, Contact[]>);
+
+    // Retourner les sections triées
+    return Object.keys(grouped).sort().map(letter => ({
+      letter,
+      data: grouped[letter].sort((a, b) => {
+        const lastNameCompare = (a.lastName || '').localeCompare(b.lastName || '', 'fr', { sensitivity: 'base' });
+        if (lastNameCompare !== 0) return lastNameCompare;
+        return (a.firstName || '').localeCompare(b.firstName || '', 'fr', { sensitivity: 'base' });
+      })
+    }));
+  }, [contacts, searchText]);
   
 
   const handleContactPress = (contact: Contact) => {
@@ -834,30 +857,6 @@ export default function ContactsScreen() {
     }
   };
 
-  // Group contacts by first letter
-  const groupContactsByLetter = (contacts: Contact[]) => {
-    const grouped = contacts.reduce((acc, contact) => {
-      const firstLetter = contact.lastName.charAt(0).toUpperCase();
-      if (!acc[firstLetter]) {
-        acc[firstLetter] = [];
-      }
-      acc[firstLetter].push(contact);
-      return acc;
-    }, {} as Record<string, Contact[]>);
-
-    // Sort letters and return sections
-    return Object.keys(grouped).sort().map(letter => ({
-      letter,
-      data: grouped[letter].sort((a, b) => {
-        // Tri par nom de famille d'abord, puis prénom
-        const lastNameCompare = (a.lastName || '').localeCompare(b.lastName || '', 'fr', { sensitivity: 'base' });
-        if (lastNameCompare !== 0) return lastNameCompare;
-        return (a.firstName || '').localeCompare(b.firstName || '', 'fr', { sensitivity: 'base' });
-      })
-    }));
-  };
-
-  const contactSections = groupContactsByLetter(filteredContacts);
 
   const renderSectionHeader = ({ section }: { section: { letter: string } }) => (
     <View style={styles.sectionHeader}>
@@ -873,7 +872,8 @@ export default function ContactsScreen() {
     />
   );
 
-  const ListHeaderComponent = () => (
+  // Header stable avec useMemo pour éviter les re-montages du TextInput
+  const ListHeaderComponent = useMemo(() => (
     <View>
       {/* Titre de section et boutons d'action */}
       <View style={styles.contactsHeaderContainer}>
@@ -918,21 +918,31 @@ export default function ContactsScreen() {
           </TouchableOpacity>
           <TextInput
             ref={searchInputRef}
-            key="search-input"
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              isSearchFocused && styles.searchInputFocused
+            ]}
             placeholder="Rechercher un contact..."
             placeholderTextColor={MyCrewColors.placeholderText}
             value={searchText}
             onChangeText={handleSearchChange}
+            onFocus={handleSearchFocus}
+            onBlur={handleSearchBlur}
             returnKeyType="search"
             autoCorrect={false}
             autoCapitalize="none"
             blurOnSubmit={false}
             textContentType="none"
             autoComplete="off"
+            keyboardType="default"
+            enablesReturnKeyAutomatically={false}
+            spellCheck={false}
           />
           {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')}>
+            <TouchableOpacity 
+              onPress={handleClearSearch}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Ionicons name="close-circle" size={20} color={MyCrewColors.iconMuted} />
             </TouchableOpacity>
           )}
@@ -1030,7 +1040,7 @@ export default function ContactsScreen() {
       )}
       
     </View>
-  );
+  ), [searchText, isSearchFocused, activeFilters, contacts, handleSearchChange, handleSearchFocus, handleSearchBlur, handleClearSearch, handleImportPress]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1055,7 +1065,7 @@ export default function ContactsScreen() {
         sections={contactSections}
         renderItem={renderContact}
         renderSectionHeader={renderSectionHeader}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         ListHeaderComponent={ListHeaderComponent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
@@ -1243,6 +1253,12 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: Typography.body,
+    color: MyCrewColors.textPrimary,
+    paddingVertical: 0, // Évite les problèmes de height sur Android
+    includeFontPadding: false, // Android uniquement
+  },
+  searchInputFocused: {
+    // Style légèrement différent quand focalisé pour indiquer l'état
     color: MyCrewColors.textPrimary,
   },
   
