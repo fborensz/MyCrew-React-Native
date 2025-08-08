@@ -15,7 +15,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { MyCrewColors } from '../constants/Colors';
-import { UserProfile } from '../types';
+import { UserProfile, getUserProfileFullName } from '../types';
 import { DatabaseService } from '../services/DatabaseService';
 import ExportModal from '../components/ExportModal';
 
@@ -173,13 +173,13 @@ export default function ProfileScreen() {
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {profile.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+              {getUserProfileFullName(profile).split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
             </Text>
           </View>
         </View>
         
         <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{profile.name}</Text>
+          <Text style={styles.profileName}>{getUserProfileFullName(profile)}</Text>
           <Text style={styles.profileJob}>{profile.jobTitle}</Text>
           {primaryLocation && (
             <Text style={styles.profileLocation}>

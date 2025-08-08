@@ -85,7 +85,8 @@ export default function AddContactScreen() {
   } = useForm<ContactFormData>({
     resolver: yupResolver(contactValidationSchema),
     defaultValues: {
-      name: '',
+      firstName: '',
+      lastName: '',
       jobTitle: '',
       phone: '',
       email: '',
@@ -105,7 +106,8 @@ export default function AddContactScreen() {
     try {
       const db = DatabaseService.getInstance();
       await db.createContact({
-        name: data.name,
+        firstName: data.firstName,
+        lastName: data.lastName,
         jobTitle: data.jobTitle,
         phone: data.phone,
         email: data.email,
@@ -116,7 +118,7 @@ export default function AddContactScreen() {
       
       Alert.alert(
         'Contact créé',
-        `${data.name} a été ajouté à vos contacts.`,
+        `${data.firstName} ${data.lastName} a été ajouté à vos contacts.`,
         [
           {
             text: 'OK',
@@ -239,25 +241,48 @@ export default function AddContactScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informations personnelles</Text>
           
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Nom complet *
-              {errors.name && <Text style={styles.errorText}> - {errors.name.message}</Text>}
-            </Text>
-            <Controller
-              control={control}
-              name="name"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  style={[styles.input, errors.name && styles.inputError]}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  placeholder="Prénom Nom"
-                  placeholderTextColor={MyCrewColors.placeholderText}
-                />
-              )}
-            />
+          <View style={styles.inputRow}>
+            <View style={styles.inputHalf}>
+              <Text style={styles.label}>
+                Prénom *
+                {errors.firstName && <Text style={styles.errorText}> - {errors.firstName.message}</Text>}
+              </Text>
+              <Controller
+                control={control}
+                name="firstName"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={[styles.input, errors.firstName && styles.inputError]}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    placeholder="Prénom"
+                    placeholderTextColor={MyCrewColors.placeholderText}
+                  />
+                )}
+              />
+            </View>
+            
+            <View style={styles.inputHalf}>
+              <Text style={styles.label}>
+                Nom *
+                {errors.lastName && <Text style={styles.errorText}> - {errors.lastName.message}</Text>}
+              </Text>
+              <Controller
+                control={control}
+                name="lastName"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={[styles.input, errors.lastName && styles.inputError]}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    placeholder="Nom"
+                    placeholderTextColor={MyCrewColors.placeholderText}
+                  />
+                )}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>

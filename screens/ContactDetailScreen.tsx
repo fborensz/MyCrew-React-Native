@@ -11,7 +11,7 @@ import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { DatabaseService } from '../services/DatabaseService';
 import { MyCrewColors, Spacing } from '../constants/Colors';
-import { Contact, RootStackParamList } from '../types';
+import { Contact, RootStackParamList, getContactFullName } from '../types';
 import ExportModal from '../components/ExportModal';
 
 interface ContactDetailScreenProps {
@@ -189,7 +189,7 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
         <View style={styles.header}>
           <View style={styles.nameSection}>
             <ThemedText variant="title" weight="bold">
-              {contact.name}
+              {getContactFullName(contact)}
             </ThemedText>
             <TouchableOpacity onPress={handleToggleFavorite} style={styles.favoriteButton}>
               <Ionicons 

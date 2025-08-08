@@ -13,7 +13,8 @@ export interface WorkLocation {
 
 export interface Contact {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   jobTitle: string;
   phone: string;
   email: string;
@@ -37,7 +38,8 @@ export interface Location {
 }
 
 export interface UserProfile {
-  name: string; // Prénom + Nom dans un seul champ
+  firstName: string;
+  lastName: string;
   jobTitle: string;
   phoneNumber: string;
   email: string;
@@ -50,7 +52,8 @@ export interface QRContactData {
   type: string; // "MyCrew_Contact"
   version: string; // "1.0"
   data: {
-    name: string;
+    firstName: string;
+    lastName: string;
     jobTitle: string;
     phone: string;
     email: string;
@@ -72,7 +75,8 @@ export interface FilterSettings {
 // Database result types
 export interface ContactRow {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   jobTitle: string;
   phone: string;
   email: string;
@@ -99,7 +103,8 @@ export interface Department {
 
 // Export/Import formats
 export interface ExportContact {
-  name: string;
+  firstName: string;
+  lastName: string;
   jobTitle: string;
   phone: string;
   email: string;
@@ -143,7 +148,8 @@ export type RootStackParamList = {
 
 // Form validation types
 export interface ContactFormData {
-  name: string;
+  firstName: string;
+  lastName: string;
   jobTitle: string;
   phone: string;
   email: string;
@@ -153,7 +159,8 @@ export interface ContactFormData {
 }
 
 export interface ContactFormErrors {
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   jobTitle?: string;
   phone?: string;
   email?: string;
@@ -175,3 +182,30 @@ export interface AppState {
   isLoading: boolean;
   lastSync?: Date;
 }
+
+// Helper functions
+export const getFullName = (firstName: string, lastName: string): string => {
+  return `${firstName} ${lastName}`.trim();
+};
+
+export const getContactFullName = (contact: Contact): string => {
+  return getFullName(contact.firstName, contact.lastName);
+};
+
+export const getUserProfileFullName = (profile: UserProfile): string => {
+  return getFullName(profile.firstName, profile.lastName);
+};
+
+export const parseFullName = (fullName: string): { firstName: string; lastName: string } => {
+  const parts = fullName.trim().split(' ');
+  if (parts.length === 0) {
+    return { firstName: '', lastName: '' };
+  } else if (parts.length === 1) {
+    return { firstName: parts[0], lastName: '' };
+  } else {
+    return { 
+      firstName: parts[0], 
+      lastName: parts.slice(1).join(' ') 
+    };
+  }
+};

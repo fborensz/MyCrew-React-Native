@@ -1,12 +1,13 @@
 // MyCrew React Native - Export Service
 // Support pour JSON, CSV, Text et QR code
 
-import { Contact, UserProfile } from '../types';
+import { Contact, UserProfile, getContactFullName, getUserProfileFullName } from '../types';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
 export interface ExportContact {
-  name: string;
+  firstName: string;
+  lastName: string;
   jobTitle: string;
   phone: string;
   email: string;
@@ -36,7 +37,8 @@ export class ExportService {
   // Convertir un contact vers le format d'export
   static contactToExportFormat(contact: Contact): ExportContact {
     return {
-      name: contact.name,
+      firstName: contact.firstName,
+      lastName: contact.lastName,
       jobTitle: contact.jobTitle,
       phone: contact.phone,
       email: contact.email,
@@ -70,6 +72,7 @@ export class ExportService {
     if (contacts.length === 0) return '';
     
     const headers = [
+      'Prénom',
       'Nom',
       'Métier',
       'Téléphone',
@@ -85,7 +88,8 @@ export class ExportService {
       const primaryLocation = contact.locations?.find(loc => loc.isPrimary) || contact.locations?.[0];
       
       return [
-        this.escapeCSV(contact.name),
+        this.escapeCSV(contact.firstName),
+        this.escapeCSV(contact.lastName),
         this.escapeCSV(contact.jobTitle),
         this.escapeCSV(contact.phone),
         this.escapeCSV(contact.email),
@@ -118,7 +122,7 @@ export class ExportService {
       if (primaryLocation?.hasVehicle) attributes.push('Véhiculé');
       if (primaryLocation?.isHoused) attributes.push('Logé');
       
-      let contactText = `${index + 1}. ${contact.name}\n`;
+      let contactText = `${index + 1}. ${getContactFullName(contact)}\n`;
       contactText += `   Métier: ${contact.jobTitle}\n`;
       contactText += `   Tél: ${contact.phone}\n`;
       contactText += `   Email: ${contact.email}\n`;
@@ -192,7 +196,8 @@ export class ExportService {
     // Convertir le profil utilisateur en format Contact pour l'export
     const contactVersion: Contact = {
       id: 'user-profile',
-      name: profile.name,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
       jobTitle: profile.jobTitle,
       phone: profile.phoneNumber,
       email: profile.email,

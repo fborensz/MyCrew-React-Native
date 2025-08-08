@@ -1,7 +1,7 @@
 // MyCrew React Native - Contacts Screen
 // Écran principal avec encart profil et bouton paramètres flottant
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   SectionList,
@@ -24,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { DatabaseService } from '../services/DatabaseService';
 import { MyCrewColors } from '../constants/Colors';
-import { Contact, UserProfile, RootStackParamList } from '../types';
+import { Contact, UserProfile, RootStackParamList, getContactFullName, getUserProfileFullName } from '../types';
 import { FILM_DEPARTMENTS } from '../data/JobTitles';
 import { COUNTRIES_WITH_REGIONS } from '../data/Locations';
 import ExportModal from '../components/ExportModal';
@@ -91,7 +91,7 @@ function ContactRow({ contact, onPress, onQRPress }: ContactRowProps) {
       <View style={styles.contactInfo}>
         <View style={styles.nameContainer}>
           <Text style={styles.contactName} numberOfLines={1}>
-            {contact.name}
+            {getContactFullName(contact)}
           </Text>
           {contact.isFavorite && (
             <Ionicons 
@@ -152,7 +152,7 @@ function ProfileCard({ profile, onPress, onQRPress }: ProfileCardProps) {
     <TouchableOpacity style={styles.profileCard} onPress={onPress}>
       <Ionicons name="person" size={32} color={MyCrewColors.background} style={styles.profileIcon} />
       <View style={styles.profileContent}>
-        <Text style={styles.profileName}>{profile.name}</Text>
+        <Text style={styles.profileName}>{getUserProfileFullName(profile)}</Text>
         <Text style={styles.profileJob}>{profile.jobTitle}</Text>
       </View>
       <TouchableOpacity style={styles.profileQRButton} onPress={onQRPress}>
@@ -613,12 +613,14 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
   );
 }
 
+
 export default function ContactsScreen() {
   const navigation = useNavigation();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [searchText, setSearchText] = useState('');
+  const searchInputRef = useRef<TextInput>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -631,6 +633,15 @@ export default function ContactsScreen() {
   useEffect(() => {
     console.log('showFiltersModal state changed:', showFiltersModal);
   }, [showFiltersModal]);
+
+  // Fonction de recherche avec micro-délai pour éviter les conflits
+  const handleSearchChange = useCallback((text: string) => {
+    console.log('Search text changed to:', text);
+    // Utiliser setTimeout pour décaler la mise à jour et éviter les conflits
+    setTimeout(() => {
+      setSearchText(text);
+    }, 0);
+  }, []);
   
   // Filter states
   const [activeFilters, setActiveFilters] = useState({
@@ -644,6 +655,7 @@ export default function ContactsScreen() {
   
   // Animation pour le bouton paramètres
   const scrollY = useRef(new Animated.Value(0)).current;
+  
   const settingsButtonScale = scrollY.interpolate({
     inputRange: [0, 50, 100],
     outputRange: [1, 0.8, 0.5],
@@ -675,110 +687,6 @@ export default function ContactsScreen() {
     }
   };
 
-  const searchAndFilterContacts = useCallback((query: string, filters: typeof activeFilters) => {
-    let results = [...contacts];
-    
-    // Apply text search
-    if (query.trim()) {
-      const searchLower = query.toLowerCase();
-      results = results.filter(contact => {
-        try {
-          return (
-            (contact.name && contact.name.toLowerCase().includes(searchLower)) ||
-            (contact.jobTitle && contact.jobTitle.toLowerCase().includes(searchLower)) ||
-            (contact.phone && contact.phone.includes(query)) ||
-            (contact.email && contact.email.toLowerCase().includes(searchLower)) ||
-            (contact.locations && contact.locations.length > 0 && 
-             contact.locations.some(loc => 
-               (loc.country && loc.country.toLowerCase().includes(searchLower)) ||
-               (loc.region && loc.region.toLowerCase().includes(searchLower))
-             ))
-          );
-        } catch (error) {
-          console.error('Search filter error:', error);
-          return false;
-        }
-      });
-    }
-    
-    // Apply filters
-    if (filters.job) {
-      results = results.filter(contact => {
-        // Handle both masculine and feminine forms
-        const jobNormalized = contact.jobTitle.toLowerCase();
-        const filterJobNormalized = filters.job!.toLowerCase();
-        
-        // Direct match
-        if (jobNormalized === filterJobNormalized) return true;
-        
-        // Handle common variations (réalisateur/réalisatrice, etc.)
-        const variations = {
-          'réalisateur': ['réalisatrice'],
-          'maquilleur': ['maquilleuse'],
-          'costumier': ['costumière'],
-          'assistant réalisateur': ['assistante réalisatrice'],
-          'monteur': ['monteuse'],
-          'monteur son': ['monteuse son'],
-          'script': ['scripte']
-        };
-        
-        const mainJob = filterJobNormalized;
-        if (variations[mainJob as keyof typeof variations]) {
-          return variations[mainJob as keyof typeof variations].some(
-            variation => jobNormalized === variation
-          );
-        }
-        
-        return false;
-      });
-    }
-    
-    if (filters.country) {
-      results = results.filter(contact => 
-        contact.locations && contact.locations.length > 0 && 
-        contact.locations.some(loc => loc.country === filters.country)
-      );
-    }
-    
-    if (filters.regions.length > 0) {
-      results = results.filter(contact => {
-        if (!contact.locations || contact.locations.length === 0) return false;
-        
-        // If "Toute la France" is selected, show all contacts in France
-        if (filters.regions.includes('Toute la France')) {
-          return contact.locations.some(loc => loc.country === 'France');
-        }
-        
-        // Otherwise, filter by specific regions
-        return contact.locations.some(loc => 
-          loc.region && filters.regions.includes(loc.region)
-        );
-      });
-    }
-    
-    if (filters.isHoused) {
-      results = results.filter(contact => 
-        contact.locations && contact.locations.length > 0 && 
-        contact.locations.some(loc => loc.isHoused)
-      );
-    }
-    
-    if (filters.isLocalResident) {
-      results = results.filter(contact => 
-        contact.locations && contact.locations.length > 0 && 
-        contact.locations.some(loc => loc.isLocalResident)
-      );
-    }
-    
-    if (filters.hasVehicle) {
-      results = results.filter(contact => 
-        contact.locations && contact.locations.length > 0 && 
-        contact.locations.some(loc => loc.hasVehicle)
-      );
-    }
-    
-    setFilteredContacts(results);
-  }, [contacts]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -792,10 +700,37 @@ export default function ContactsScreen() {
     }, [])
   );
 
-  // Effet pour la recherche et le filtrage
+  // Mémorisation des contacts filtrés pour éviter les conflits d'état
+  const filteredContactsMemo = useMemo(() => {
+    let results = [...contacts];
+    
+    // Recherche textuelle simple
+    if (searchText.trim()) {
+      const searchLower = searchText.toLowerCase();
+      results = results.filter(contact => {
+        try {
+          const fullName = getContactFullName(contact);
+          return (
+            fullName.toLowerCase().includes(searchLower) ||
+            (contact.jobTitle && contact.jobTitle.toLowerCase().includes(searchLower)) ||
+            (contact.phone && contact.phone.includes(searchText)) ||
+            (contact.email && contact.email.toLowerCase().includes(searchLower))
+          );
+        } catch (error) {
+          console.error('Filter error for contact:', contact, error);
+          return false;
+        }
+      });
+    }
+    
+    return results;
+  }, [contacts, searchText]);
+
+  // Mise à jour de filteredContacts seulement quand nécessaire
   useEffect(() => {
-    searchAndFilterContacts(searchText, activeFilters);
-  }, [searchText, activeFilters, searchAndFilterContacts]);
+    setFilteredContacts(filteredContactsMemo);
+  }, [filteredContactsMemo]);
+  
 
   const handleContactPress = (contact: Contact) => {
     navigation.navigate('ContactDetail' as never, { contactId: contact.id } as never);
@@ -902,7 +837,7 @@ export default function ContactsScreen() {
   // Group contacts by first letter
   const groupContactsByLetter = (contacts: Contact[]) => {
     const grouped = contacts.reduce((acc, contact) => {
-      const firstLetter = contact.name.charAt(0).toUpperCase();
+      const firstLetter = contact.lastName.charAt(0).toUpperCase();
       if (!acc[firstLetter]) {
         acc[firstLetter] = [];
       }
@@ -913,7 +848,12 @@ export default function ContactsScreen() {
     // Sort letters and return sections
     return Object.keys(grouped).sort().map(letter => ({
       letter,
-      data: grouped[letter].sort((a, b) => a.name.localeCompare(b.name))
+      data: grouped[letter].sort((a, b) => {
+        // Tri par nom de famille d'abord, puis prénom
+        const lastNameCompare = (a.lastName || '').localeCompare(b.lastName || '', 'fr', { sensitivity: 'base' });
+        if (lastNameCompare !== 0) return lastNameCompare;
+        return (a.firstName || '').localeCompare(b.firstName || '', 'fr', { sensitivity: 'base' });
+      })
     }));
   };
 
@@ -977,11 +917,19 @@ export default function ContactsScreen() {
             <Ionicons name="options" size={20} color={MyCrewColors.iconMuted} />
           </TouchableOpacity>
           <TextInput
+            ref={searchInputRef}
+            key="search-input"
             style={styles.searchInput}
             placeholder="Rechercher un contact..."
             placeholderTextColor={MyCrewColors.placeholderText}
             value={searchText}
-            onChangeText={setSearchText}
+            onChangeText={handleSearchChange}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+            blurOnSubmit={false}
+            textContentType="none"
+            autoComplete="off"
           />
           {searchText.length > 0 && (
             <TouchableOpacity onPress={() => setSearchText('')}>
@@ -1262,7 +1210,7 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   importButton: {
     padding: Spacing.sm,

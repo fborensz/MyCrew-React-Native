@@ -5,6 +5,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { DatabaseService, Contact, WorkLocation } from './DatabaseService';
 import { ExportContact } from './ExportService';
+import { parseFullName } from '../types';
 
 export interface ImportResult {
   success: boolean;
@@ -81,7 +82,8 @@ export class ImportService {
       if (parsedData.type === 'MyCrew_Contact' && parsedData.data) {
         // Format QR Code MyCrew
         const contact = await this.convertQRToContact(parsedData.data);
-        const existingContact = await DatabaseService.getInstance().findContactByNameAndPhone(contact.name, contact.phone);
+        const fullName = `${contact.firstName} ${contact.lastName}`;
+        const existingContact = await DatabaseService.getInstance().findContactByNameAndPhone(fullName, contact.phone);
         
         if (existingContact) {
           return {
@@ -164,7 +166,8 @@ export class ImportService {
       for (const contactData of contacts) {
         try {
           const contact = await this.convertExportToContact(contactData);
-          const existing = await DatabaseService.getInstance().findContactByNameAndPhone(contact.name, contact.phone);
+          const fullName = `${contact.firstName} ${contact.lastName}`;
+          const existing = await DatabaseService.getInstance().findContactByNameAndPhone(fullName, contact.phone);
           
           if (existing) {
             duplicates++;
@@ -175,7 +178,10 @@ export class ImportService {
           imported++;
           
         } catch (contactError) {
-          errors.push(`Erreur contact "${contactData.name || 'Unknown'}": ${contactError.message}`);
+          const contactName = contactData.firstName && contactData.lastName 
+            ? `${contactData.firstName} ${contactData.lastName}`
+            : contactData.name || 'Unknown';
+          errors.push(`Erreur contact "${contactName}": ${contactError.message}`);
         }
       }
       
@@ -214,9 +220,10 @@ export class ImportService {
           const values = this.parseCSVLine(lines[i]);
           const contactData = this.csvRowToContact(headers, values);
           
-          if (!contactData.name) continue;
+          if (!contactData.firstName && !contactData.lastName) continue;
           
-          const existing = await DatabaseService.getInstance().findContactByNameAndPhone(contactData.name, contactData.phone);
+          const fullName = `${contactData.firstName} ${contactData.lastName}`;
+          const existing = await DatabaseService.getInstance().findContactByNameAndPhone(fullName, contactData.phone);
           
           if (existing) {
             duplicates++;
@@ -260,9 +267,10 @@ export class ImportService {
         try {
           const contact = this.parseVCard('BEGIN:VCARD' + block);
           
-          if (!contact.name) continue;
+          if (!contact.firstName && !contact.lastName) continue;
           
-          const existing = await DatabaseService.getInstance().findContactByNameAndPhone(contact.name, contact.phone);
+          const fullName = `${contact.firstName} ${contact.lastName}`;
+          const existing = await DatabaseService.getInstance().findContactByNameAndPhone(fullName, contact.phone);
           
           if (existing) {
             duplicates++;
@@ -297,7 +305,8 @@ export class ImportService {
   // Utilitaires de conversion
   static async convertExportToContact(exportData: ExportContact): Promise<Omit<Contact, 'id'>> {
     return {
-      name: exportData.name || '',
+      firstName: exportData.firstName || '',
+      lastName: exportData.lastName || '',
       jobTitle: exportData.jobTitle || '',
       phone: exportData.phone || '',
       email: exportData.email || '',
@@ -317,7 +326,8 @@ export class ImportService {
 
   static async convertQRToContact(qrData: any): Promise<Omit<Contact, 'id'>> {
     return {
-      name: qrData.name || '',
+      firstName: qrData.firstName || '',
+      lastName: qrData.lastName || '',
       jobTitle: qrData.jobTitle || '',
       phone: qrData.phone || '',
       email: qrData.email || '',
@@ -359,7 +369,8 @@ export class ImportService {
     }
     
     return {
-      name: getValue('nom'),
+      firstName: getValue('prénom'),
+      lastName: getValue('nom'),
       jobTitle: getValue('métier'),
       phone: getValue('téléphone'),
       email: getValue('email'),
@@ -372,7 +383,7 @@ export class ImportService {
   static parseVCard(vcard: string): Omit<Contact, 'id'> {
     const lines = vcard.split('\n').map(line => line.trim()).filter(line => line);
     
-    let name = '';
+    let fullName = '';
     let jobTitle = '';
     let phone = '';
     let email = '';
@@ -382,7 +393,7 @@ export class ImportService {
     
     for (const line of lines) {
       if (line.startsWith('FN:')) {
-        name = line.substring(3);
+        fullName = line.substring(3);
       } else if (line.startsWith('ORG:')) {
         jobTitle = line.substring(4);
       } else if (line.startsWith('TEL')) {
@@ -412,8 +423,12 @@ export class ImportService {
       });
     }
     
+    // Parse full name into first and last name
+    const { firstName, lastName } = parseFullName(fullName);
+    
     return {
-      name,
+      firstName,
+      lastName,
       jobTitle,
       phone,
       email,

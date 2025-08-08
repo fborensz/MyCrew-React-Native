@@ -3,11 +3,17 @@ import * as yup from 'yup';
 // Schémas de validation pour les formulaires MyCrew
 
 export const contactValidationSchema = yup.object().shape({
-  name: yup
+  firstName: yup
+    .string()
+    .required('Le prénom est obligatoire')
+    .min(2, 'Le prénom doit contenir au moins 2 caractères')
+    .max(50, 'Le prénom ne peut pas dépasser 50 caractères'),
+  
+  lastName: yup
     .string()
     .required('Le nom est obligatoire')
     .min(2, 'Le nom doit contenir au moins 2 caractères')
-    .max(100, 'Le nom ne peut pas dépasser 100 caractères'),
+    .max(50, 'Le nom ne peut pas dépasser 50 caractères'),
   
   jobTitle: yup
     .string()
@@ -78,11 +84,17 @@ export const contactValidationSchema = yup.object().shape({
 });
 
 export const userProfileValidationSchema = yup.object().shape({
-  name: yup
+  firstName: yup
+    .string()
+    .required('Le prénom est obligatoire')
+    .min(2, 'Le prénom doit contenir au moins 2 caractères')
+    .max(50, 'Le prénom ne peut pas dépasser 50 caractères'),
+  
+  lastName: yup
     .string()
     .required('Le nom est obligatoire')
     .min(2, 'Le nom doit contenir au moins 2 caractères')
-    .max(100, 'Le nom ne peut pas dépasser 100 caractères'),
+    .max(50, 'Le nom ne peut pas dépasser 50 caractères'),
   
   jobTitle: yup
     .string()

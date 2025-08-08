@@ -61,7 +61,8 @@ const Shadows = {
 };
 
 interface UserProfileFormData {
-  name: string;
+  firstName: string;
+  lastName: string;
   jobTitle: string;
   phoneNumber: string;
   email: string;
@@ -93,7 +94,8 @@ export default function UserProfileEditorScreen() {
   } = useForm<UserProfileFormData>({
     resolver: yupResolver(userProfileValidationSchema),
     defaultValues: {
-      name: '',
+      firstName: '',
+      lastName: '',
       jobTitle: '',
       phoneNumber: '',
       email: '',
@@ -126,7 +128,8 @@ export default function UserProfileEditorScreen() {
         }));
         
         reset({
-          name: profile.name,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
           jobTitle: profile.jobTitle,
           phoneNumber: profile.phoneNumber,
           email: profile.email,
@@ -154,7 +157,8 @@ export default function UserProfileEditorScreen() {
       
       // Créer l'objet UserProfile avec les IDs générés
       const profileData: UserProfile = {
-        name: data.name,
+        firstName: data.firstName,
+        lastName: data.lastName,
         jobTitle: data.jobTitle,
         phoneNumber: data.phoneNumber,
         email: data.email,
@@ -295,25 +299,48 @@ export default function UserProfileEditorScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informations personnelles</Text>
           
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Nom complet *
-              {errors.name && <Text style={styles.errorText}> - {errors.name.message}</Text>}
-            </Text>
-            <Controller
-              control={control}
-              name="name"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  style={[styles.input, errors.name && styles.inputError]}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  placeholder="Prénom Nom"
-                  placeholderTextColor={MyCrewColors.placeholderText}
-                />
-              )}
-            />
+          <View style={styles.inputRow}>
+            <View style={styles.inputHalf}>
+              <Text style={styles.label}>
+                Prénom *
+                {errors.firstName && <Text style={styles.errorText}> - {errors.firstName.message}</Text>}
+              </Text>
+              <Controller
+                control={control}
+                name="firstName"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={[styles.input, errors.firstName && styles.inputError]}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    placeholder="Prénom"
+                    placeholderTextColor={MyCrewColors.placeholderText}
+                  />
+                )}
+              />
+            </View>
+            
+            <View style={styles.inputHalf}>
+              <Text style={styles.label}>
+                Nom *
+                {errors.lastName && <Text style={styles.errorText}> - {errors.lastName.message}</Text>}
+              </Text>
+              <Controller
+                control={control}
+                name="lastName"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={[styles.input, errors.lastName && styles.inputError]}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    placeholder="Nom"
+                    placeholderTextColor={MyCrewColors.placeholderText}
+                  />
+                )}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
