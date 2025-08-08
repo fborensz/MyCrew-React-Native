@@ -135,6 +135,8 @@ export type RootStackParamList = {
     qrData?: any;
   };
   UserProfileEditor: undefined;
+  ExportOptions: undefined;
+  ImportOptions: undefined;
 };
 
 export type TabParamList = {

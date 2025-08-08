@@ -23,6 +23,8 @@ import QRCodeDisplayScreen from './screens/QRCodeDisplayScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import UserProfileEditorScreen from './screens/UserProfileEditorScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import ExportOptionsScreen from './screens/ExportOptionsScreen';
+import ImportOptionsScreen from './screens/ImportOptionsScreen';
 import SplashScreen from './screens/SplashScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -189,6 +191,16 @@ export default function App() {
           name="UserProfileEditor" 
           component={UserProfileEditorScreen}
           options={{ title: 'Éditer profil' }}
+        />
+        <Stack.Screen 
+          name="ExportOptions" 
+          component={ExportOptionsScreen}
+          options={{ title: 'Exporter' }}
+        />
+        <Stack.Screen 
+          name="ImportOptions" 
+          component={ImportOptionsScreen}
+          options={{ title: 'Importer' }}
         />
       </Stack.Navigator>
       <StatusBar style="dark" backgroundColor={MyCrewColors.background} />
