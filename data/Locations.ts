@@ -11,8 +11,12 @@ export interface Region {
   cities: string[];
 }
 
-// French regions with major cities (13 regions from Swift app)
+// French regions with major cities (13 regions from Swift app + Toute la France option)
 export const FRENCH_REGIONS: Region[] = [
+  {
+    name: 'Toute la France',
+    cities: ['France entière']
+  },
   {
     name: 'Île-de-France',
     cities: ['Paris', 'Versailles', 'Saint-Denis', 'Boulogne-Billancourt', 'Nanterre']

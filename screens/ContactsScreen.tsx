@@ -211,8 +211,8 @@ interface FilterModalProps {
   visible: boolean;
   onClose: () => void;
   activeFilters: {
-    jobs: string[];
-    countries: string[];
+    job: string | null;
+    country: string | null;
     regions: string[];
     isHoused: boolean;
     isLocalResident: boolean;
@@ -224,6 +224,9 @@ interface FilterModalProps {
 
 function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearFilters }: FilterModalProps) {
   const [tempFilters, setTempFilters] = useState(activeFilters);
+  const [showJobPicker, setShowJobPicker] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [showRegionPicker, setShowRegionPicker] = useState(false);
   
   useEffect(() => {
     setTempFilters(activeFilters);
@@ -236,14 +239,27 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
   const allJobs = React.useMemo(() => {
     try {
       if (FILM_DEPARTMENTS && FILM_DEPARTMENTS.length > 0) {
-        return FILM_DEPARTMENTS.flatMap(dept => dept.jobs);
+        // Convert all jobs to masculine form to avoid filter bugs (réalisateur/réalisatrice)
+        return FILM_DEPARTMENTS.flatMap(dept => dept.jobs).map(job => {
+          // Convert feminine forms to masculine
+          const masculineJobs = {
+            'Réalisatrice': 'Réalisateur',
+            'Maquilleuse': 'Maquilleur',
+            'Costumière': 'Costumier',
+            'Assistante Réalisatrice': 'Assistant Réalisateur',
+            'Monteuse': 'Monteur',
+            'Monteuse Son': 'Monteur Son',
+            'Scripte': 'Script'
+          };
+          return masculineJobs[job as keyof typeof masculineJobs] || job;
+        }).filter((job, index, array) => array.indexOf(job) === index); // Remove duplicates
       }
       // Fallback data if import fails
       return [
         'Réalisateur', 'Chef opérateur', 'Cadreur', 'Ingénieur du Son', 'Chef Décorateur',
-        '1er Assistant Réalisateur', 'Script', 'Monteur', 'Producteur', 'Régisseur Général',
-        'Chef Électro (Gaffer)', 'Maquilleuse', 'Costumière', 'Chef Machiniste',
-        'Assistante Réalisatrice', 'Directeur Photo', 'Perchman', 'Monteuse Son', 'Étalonneur'
+        'Assistant Réalisateur', 'Script', 'Monteur', 'Producteur', 'Régisseur Général',
+        'Chef Électro (Gaffer)', 'Maquilleur', 'Costumier', 'Chef Machiniste',
+        'Directeur Photo', 'Perchman', 'Monteur Son', 'Étalonneur'
       ];
     } catch (error) {
       console.error('Error loading jobs:', error);
@@ -254,25 +270,28 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
   const allCountries = React.useMemo(() => {
     try {
       if (COUNTRIES_WITH_REGIONS && Object.keys(COUNTRIES_WITH_REGIONS).length > 0) {
-        return Object.keys(COUNTRIES_WITH_REGIONS);
+        const countries = Object.keys(COUNTRIES_WITH_REGIONS);
+        // Put "Worldwide" at the top
+        const sortedCountries = countries.filter(c => c !== 'Worldwide').sort();
+        return countries.includes('Worldwide') ? ['Worldwide', ...sortedCountries] : sortedCountries;
       }
       // Fallback data if import fails
-      return ['France', 'Belgique', 'Suisse', 'Canada', 'États-Unis', 'Royaume-Uni'];
+      return ['Worldwide', 'France', 'Belgique', 'Suisse', 'Canada', 'États-Unis', 'Royaume-Uni'];
     } catch (error) {
       console.error('Error loading countries:', error);
-      return ['France', 'Belgique', 'Suisse'];
+      return ['Worldwide', 'France', 'Belgique', 'Suisse'];
     }
   }, []);
 
   const availableRegions = React.useMemo(() => {
     try {
-      if (tempFilters.countries.includes('France') && COUNTRIES_WITH_REGIONS && COUNTRIES_WITH_REGIONS['France']) {
-        return COUNTRIES_WITH_REGIONS['France'];
+      if (tempFilters.country === 'France' && COUNTRIES_WITH_REGIONS && COUNTRIES_WITH_REGIONS['France']) {
+        return ['Toute la France', ...COUNTRIES_WITH_REGIONS['France']];
       }
       // Fallback French regions if import fails
-      if (tempFilters.countries.includes('France')) {
+      if (tempFilters.country === 'France') {
         return [
-          'Île-de-France', 'Provence-Alpes-Côte d\'Azur', 'Auvergne-Rhône-Alpes',
+          'Toute la France', 'Île-de-France', 'Provence-Alpes-Côte d\'Azur', 'Auvergne-Rhône-Alpes',
           'Nouvelle-Aquitaine', 'Occitanie', 'Hauts-de-France', 'Grand Est',
           'Pays de la Loire', 'Bretagne', 'Normandie', 'Centre-Val de Loire'
         ];
@@ -282,31 +301,25 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
       console.error('Error loading regions:', error);
       return [];
     }
-  }, [tempFilters.countries]);
+  }, [tempFilters.country]);
 
   const toggleJobFilter = (job: string) => {
     setTempFilters(prev => ({
       ...prev,
-      jobs: prev.jobs.includes(job)
-        ? prev.jobs.filter(j => j !== job)
-        : [...prev.jobs, job]
+      job: prev.job === job ? null : job
     }));
   };
 
   const toggleCountryFilter = (country: string) => {
     setTempFilters(prev => {
-      const newCountries = prev.countries.includes(country)
-        ? prev.countries.filter(c => c !== country)
-        : [...prev.countries, country];
+      const newCountry = prev.country === country ? null : country;
       
-      // Clear regions if France is deselected
-      const newRegions = country === 'France' && !newCountries.includes('France')
-        ? []
-        : prev.regions;
+      // Clear regions if France is deselected or country changes
+      const newRegions = (newCountry !== 'France') ? [] : prev.regions;
 
       return {
         ...prev,
-        countries: newCountries,
+        country: newCountry,
         regions: newRegions
       };
     });
@@ -335,8 +348,8 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
 
   const handleClear = () => {
     const clearedFilters = {
-      jobs: [],
-      countries: [],
+      job: null,
+      country: null,
       regions: [],
       isHoused: false,
       isLocalResident: false,
@@ -372,74 +385,51 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
 
           {/* Content */}
           <ScrollView style={styles.filterModalBody} showsVerticalScrollIndicator={false}>
-            {/* Jobs Section */}
+            {/* Jobs Section - Dropdown */}
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Métiers</Text>
-              <View style={styles.filterList}>
-                {allJobs.map((job) => (
-                  <TouchableOpacity
-                    key={job}
-                    style={styles.filterListItem}
-                    onPress={() => toggleJobFilter(job)}
-                  >
-                    <Ionicons
-                      name={tempFilters.jobs.includes(job) ? 'checkbox' : 'square-outline'}
-                      size={20}
-                      color={tempFilters.jobs.includes(job) ? MyCrewColors.accent : MyCrewColors.iconMuted}
-                    />
-                    <Text style={styles.filterListText}>{job}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <Text style={styles.filterSectionTitle}>Métier</Text>
+              <TouchableOpacity
+                style={styles.filterDropdown}
+                onPress={() => setShowJobPicker(true)}
+              >
+                <Text style={[styles.filterDropdownText, !tempFilters.job && styles.filterDropdownPlaceholder]}>
+                  {tempFilters.job || 'Choisir un métier'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color={MyCrewColors.iconMuted} />
+              </TouchableOpacity>
             </View>
 
-            {/* Countries Section */}
+            {/* Countries Section - Dropdown */}
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Pays ({allCountries.length})</Text>
-              <View style={styles.filterGrid}>
-                {allCountries.map((country) => (
-                  <TouchableOpacity
-                    key={country}
-                    style={[
-                      styles.filterChip,
-                      tempFilters.countries.includes(country) && styles.filterChipActive
-                    ]}
-                    onPress={() => toggleCountryFilter(country)}
-                  >
-                    <Text style={[
-                      styles.filterChipText,
-                      tempFilters.countries.includes(country) && styles.filterChipTextActive
-                    ]}>
-                      {country}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <Text style={styles.filterSectionTitle}>Pays</Text>
+              <TouchableOpacity
+                style={styles.filterDropdown}
+                onPress={() => setShowCountryPicker(true)}
+              >
+                <Text style={[styles.filterDropdownText, !tempFilters.country && styles.filterDropdownPlaceholder]}>
+                  {tempFilters.country || 'Choisir un pays'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color={MyCrewColors.iconMuted} />
+              </TouchableOpacity>
             </View>
 
-            {/* Regions Section (only if France is selected) */}
-            {tempFilters.countries.includes('France') && (
+            {/* Regions Section (only if France is selected) - Dropdown for multiple selection */}
+            {tempFilters.country === 'France' && (
               <View style={styles.filterSection}>
                 <Text style={styles.filterSectionTitle}>Régions françaises</Text>
-                <View style={styles.filterGrid}>
-                  {availableRegions.map((region) => (
-                    <TouchableOpacity
-                      key={region}
-                      style={[
-                        styles.filterChip,
-                        tempFilters.regions.includes(region) && styles.filterChipActive
-                      ]}
-                      onPress={() => toggleRegionFilter(region)}
-                    >
-                      <Text style={[
-                        styles.filterChipText,
-                        tempFilters.regions.includes(region) && styles.filterChipTextActive
-                      ]}>
-                        {region}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <TouchableOpacity
+                  style={styles.filterDropdown}
+                  onPress={() => setShowRegionPicker(true)}
+                >
+                  <Text style={[styles.filterDropdownText, tempFilters.regions.length === 0 && styles.filterDropdownPlaceholder]}>
+                    {tempFilters.regions.length > 0 
+                      ? tempFilters.regions.length === 1 
+                        ? tempFilters.regions[0]
+                        : `${tempFilters.regions.length} régions sélectionnées`
+                      : 'Choisir des régions'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color={MyCrewColors.iconMuted} />
+                </TouchableOpacity>
               </View>
             )}
 
@@ -497,6 +487,126 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
           </View>
         </View>
       </View>
+      
+      {/* Job Picker Overlay */}
+      {showJobPicker && (
+        <View style={styles.pickerOverlay}>
+          <View style={styles.pickerContent}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Choisir un métier</Text>
+              <TouchableOpacity onPress={() => setShowJobPicker(false)}>
+                <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerList}>
+              <TouchableOpacity
+                style={styles.pickerItem}
+                onPress={() => {
+                  setTempFilters(prev => ({ ...prev, job: null }));
+                  setShowJobPicker(false);
+                }}
+              >
+                <Text style={[styles.pickerItemText, !tempFilters.job && styles.pickerItemTextActive]}>Aucun filtre</Text>
+              </TouchableOpacity>
+              {allJobs.map((job) => (
+                <TouchableOpacity
+                  key={job}
+                  style={styles.pickerItem}
+                  onPress={() => {
+                    toggleJobFilter(job);
+                    setShowJobPicker(false);
+                  }}
+                >
+                  <Text style={[styles.pickerItemText, tempFilters.job === job && styles.pickerItemTextActive]}>
+                    {job}
+                  </Text>
+                  {tempFilters.job === job && (
+                    <Ionicons name="checkmark" size={20} color={MyCrewColors.accent} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+      
+      {/* Country Picker Overlay */}
+      {showCountryPicker && (
+        <View style={styles.pickerOverlay}>
+          <View style={styles.pickerContent}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Choisir un pays</Text>
+              <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
+                <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerList}>
+              <TouchableOpacity
+                style={styles.pickerItem}
+                onPress={() => {
+                  setTempFilters(prev => ({ ...prev, country: null, regions: [] }));
+                  setShowCountryPicker(false);
+                }}
+              >
+                <Text style={[styles.pickerItemText, !tempFilters.country && styles.pickerItemTextActive]}>Aucun filtre</Text>
+              </TouchableOpacity>
+              {allCountries.map((country) => (
+                <TouchableOpacity
+                  key={country}
+                  style={styles.pickerItem}
+                  onPress={() => {
+                    toggleCountryFilter(country);
+                    setShowCountryPicker(false);
+                  }}
+                >
+                  <Text style={[styles.pickerItemText, tempFilters.country === country && styles.pickerItemTextActive]}>
+                    {country}
+                  </Text>
+                  {tempFilters.country === country && (
+                    <Ionicons name="checkmark" size={20} color={MyCrewColors.accent} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+      
+      {/* Region Picker Overlay */}
+      {showRegionPicker && (
+        <View style={styles.pickerOverlay}>
+          <View style={styles.pickerContent}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Choisir des régions</Text>
+              <TouchableOpacity onPress={() => setShowRegionPicker(false)}>
+                <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerList}>
+              {availableRegions.map((region) => (
+                <TouchableOpacity
+                  key={region}
+                  style={styles.pickerItem}
+                  onPress={() => toggleRegionFilter(region)}
+                >
+                  <Text style={[styles.pickerItemText, tempFilters.regions.includes(region) && styles.pickerItemTextActive]}>
+                    {region}
+                  </Text>
+                  {tempFilters.regions.includes(region) && (
+                    <Ionicons name="checkmark" size={20} color={MyCrewColors.accent} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.pickerDoneButton}
+              onPress={() => setShowRegionPicker(false)}
+            >
+              <Text style={styles.pickerDoneButtonText}>Terminé</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </Modal>
   );
 }
@@ -519,8 +629,8 @@ export default function ContactsScreen() {
   
   // Filter states
   const [activeFilters, setActiveFilters] = useState({
-    jobs: [] as string[],
-    countries: [] as string[],
+    job: null as string | null,
+    country: null as string | null,
     regions: [] as string[],
     isHoused: false,
     isLocalResident: false,
@@ -587,24 +697,58 @@ export default function ContactsScreen() {
     }
     
     // Apply filters
-    if (filters.jobs.length > 0) {
-      results = results.filter(contact => filters.jobs.includes(contact.jobTitle));
+    if (filters.job) {
+      results = results.filter(contact => {
+        // Handle both masculine and feminine forms
+        const jobNormalized = contact.jobTitle.toLowerCase();
+        const filterJobNormalized = filters.job!.toLowerCase();
+        
+        // Direct match
+        if (jobNormalized === filterJobNormalized) return true;
+        
+        // Handle common variations (réalisateur/réalisatrice, etc.)
+        const variations = {
+          'réalisateur': ['réalisatrice'],
+          'maquilleur': ['maquilleuse'],
+          'costumier': ['costumière'],
+          'assistant réalisateur': ['assistante réalisatrice'],
+          'monteur': ['monteuse'],
+          'monteur son': ['monteuse son'],
+          'script': ['scripte']
+        };
+        
+        const mainJob = filterJobNormalized;
+        if (variations[mainJob as keyof typeof variations]) {
+          return variations[mainJob as keyof typeof variations].some(
+            variation => jobNormalized === variation
+          );
+        }
+        
+        return false;
+      });
     }
     
-    if (filters.countries.length > 0) {
+    if (filters.country) {
       results = results.filter(contact => 
         contact.locations && contact.locations.length > 0 && 
-        contact.locations.some(loc => filters.countries.includes(loc.country))
+        contact.locations.some(loc => loc.country === filters.country)
       );
     }
     
     if (filters.regions.length > 0) {
-      results = results.filter(contact => 
-        contact.locations && contact.locations.length > 0 && 
-        contact.locations.some(loc => 
+      results = results.filter(contact => {
+        if (!contact.locations || contact.locations.length === 0) return false;
+        
+        // If "Toute la France" is selected, show all contacts in France
+        if (filters.regions.includes('Toute la France')) {
+          return contact.locations.some(loc => loc.country === 'France');
+        }
+        
+        // Otherwise, filter by specific regions
+        return contact.locations.some(loc => 
           loc.region && filters.regions.includes(loc.region)
-        )
-      );
+        );
+      });
     }
     
     if (filters.isHoused) {
@@ -697,12 +841,11 @@ export default function ContactsScreen() {
     setActiveFilters(prev => {
       switch (type) {
         case 'job':
-          return { ...prev, jobs: prev.jobs.filter(j => j !== value) };
+          return { ...prev, job: null };
         case 'country':
-          const newCountries = prev.countries.filter(c => c !== value);
           // Clear regions if France is removed
-          const newRegions = value === 'France' ? [] : prev.regions;
-          return { ...prev, countries: newCountries, regions: newRegions };
+          const newRegions = prev.country === 'France' ? [] : prev.regions;
+          return { ...prev, country: null, regions: newRegions };
         case 'region':
           return { ...prev, regions: prev.regions.filter(r => r !== value) };
         case 'isHoused':
@@ -714,6 +857,17 @@ export default function ContactsScreen() {
         default:
           return prev;
       }
+    });
+  };
+
+  const clearAllFilters = () => {
+    setActiveFilters({
+      job: null,
+      country: null,
+      regions: [],
+      isHoused: false,
+      isLocalResident: false,
+      hasVehicle: false,
     });
   };
 
@@ -799,77 +953,91 @@ export default function ContactsScreen() {
       </View>
       
       {/* Filtres actifs */}
-      {(activeFilters.jobs.length > 0 || 
-        activeFilters.countries.length > 0 || 
+      {(activeFilters.job || 
+        activeFilters.country || 
         activeFilters.regions.length > 0 || 
         activeFilters.isHoused || 
         activeFilters.isLocalResident || 
         activeFilters.hasVehicle) && (
         <View style={styles.activeFiltersContainer}>
-          <Text style={styles.activeFiltersTitle}>Filtres actifs :</Text>
-          <View style={styles.activeFiltersRow}>
-            {activeFilters.jobs.map(job => (
-              <TouchableOpacity
-                key={job}
-                style={styles.activeFilterChip}
-                onPress={() => removeFilter('job', job)}
-              >
-                <Text style={styles.activeFilterText}>{job}</Text>
-                <Ionicons name="close" size={14} color={MyCrewColors.background} />
-              </TouchableOpacity>
-            ))}
-            
-            {activeFilters.countries.map(country => (
-              <TouchableOpacity
-                key={country}
-                style={styles.activeFilterChip}
-                onPress={() => removeFilter('country', country)}
-              >
-                <Text style={styles.activeFilterText}>{country}</Text>
-                <Ionicons name="close" size={14} color={MyCrewColors.background} />
-              </TouchableOpacity>
-            ))}
-            
-            {activeFilters.regions.map(region => (
-              <TouchableOpacity
-                key={region}
-                style={styles.activeFilterChip}
-                onPress={() => removeFilter('region', region)}
-              >
-                <Text style={styles.activeFilterText}>{region}</Text>
-                <Ionicons name="close" size={14} color={MyCrewColors.background} />
-              </TouchableOpacity>
-            ))}
-            
-            {activeFilters.isLocalResident && (
-              <TouchableOpacity
-                style={styles.activeFilterChip}
-                onPress={() => removeFilter('isLocalResident')}
-              >
-                <Text style={styles.activeFilterText}>Résidence fiscale</Text>
-                <Ionicons name="close" size={14} color={MyCrewColors.background} />
-              </TouchableOpacity>
-            )}
-            
-            {activeFilters.hasVehicle && (
-              <TouchableOpacity
-                style={styles.activeFilterChip}
-                onPress={() => removeFilter('hasVehicle')}
-              >
-                <Text style={styles.activeFilterText}>Véhiculé</Text>
-                <Ionicons name="close" size={14} color={MyCrewColors.background} />
-              </TouchableOpacity>
-            )}
-            
-            {activeFilters.isHoused && (
-              <TouchableOpacity
-                style={styles.activeFilterChip}
-                onPress={() => removeFilter('isHoused')}
-              >
-                <Text style={styles.activeFilterText}>Logé</Text>
-                <Ionicons name="close" size={14} color={MyCrewColors.background} />
-              </TouchableOpacity>
-            )}
+          <View style={styles.activeFiltersHeader}>
+            <Text style={styles.activeFiltersTitle}>Filtres actifs :</Text>
+            <TouchableOpacity 
+              style={styles.clearAllButton}
+              onPress={clearAllFilters}
+            >
+              <Ionicons name="close-circle" size={18} color="#dc3545" style={{ marginRight: 4 }} />
+              <Text style={styles.clearAllText}>supprimer les filtres</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.activeFiltersScrollContainer}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.activeFiltersScroll}
+              contentContainerStyle={styles.activeFiltersScrollContent}
+            >
+              {activeFilters.job && (
+                <TouchableOpacity
+                  style={styles.activeFilterChip}
+                  onPress={() => removeFilter('job')}
+                >
+                  <Text style={styles.activeFilterText}>{activeFilters.job}</Text>
+                  <Ionicons name="close" size={14} color={MyCrewColors.background} />
+                </TouchableOpacity>
+              )}
+              
+              {activeFilters.country && (
+                <TouchableOpacity
+                  style={styles.activeFilterChip}
+                  onPress={() => removeFilter('country')}
+                >
+                  <Text style={styles.activeFilterText}>{activeFilters.country}</Text>
+                  <Ionicons name="close" size={14} color={MyCrewColors.background} />
+                </TouchableOpacity>
+              )}
+              
+              {activeFilters.regions.map(region => (
+                <TouchableOpacity
+                  key={region}
+                  style={styles.activeFilterChip}
+                  onPress={() => removeFilter('region', region)}
+                >
+                  <Text style={styles.activeFilterText}>{region}</Text>
+                  <Ionicons name="close" size={14} color={MyCrewColors.background} />
+                </TouchableOpacity>
+              ))}
+              
+              {activeFilters.isLocalResident && (
+                <TouchableOpacity
+                  style={styles.activeFilterChip}
+                  onPress={() => removeFilter('isLocalResident')}
+                >
+                  <Text style={styles.activeFilterText}>Résidence fiscale</Text>
+                  <Ionicons name="close" size={14} color={MyCrewColors.background} />
+                </TouchableOpacity>
+              )}
+              
+              {activeFilters.hasVehicle && (
+                <TouchableOpacity
+                  style={styles.activeFilterChip}
+                  onPress={() => removeFilter('hasVehicle')}
+                >
+                  <Text style={styles.activeFilterText}>Véhiculé</Text>
+                  <Ionicons name="close" size={14} color={MyCrewColors.background} />
+                </TouchableOpacity>
+              )}
+              
+              {activeFilters.isHoused && (
+                <TouchableOpacity
+                  style={styles.activeFilterChip}
+                  onPress={() => removeFilter('isHoused')}
+                >
+                  <Text style={styles.activeFilterText}>Logé</Text>
+                  <Ionicons name="close" size={14} color={MyCrewColors.background} />
+                </TouchableOpacity>
+              )}
+            </ScrollView>
           </View>
         </View>
       )}
@@ -1199,16 +1367,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,
   },
+  activeFiltersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
   activeFiltersTitle: {
     fontSize: Typography.small,
     fontWeight: '600',
     color: MyCrewColors.textSecondary,
-    marginBottom: Spacing.xs,
   },
-  activeFiltersRow: {
+  clearAllButton: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    padding: 2,
+  },
+  clearAllText: {
+    fontSize: Typography.small,
+    color: '#dc3545',
+    fontWeight: '500',
+  },
+  activeFiltersScrollContainer: {
+    position: 'relative',
+  },
+  activeFiltersScroll: {
+    flexGrow: 0,
+  },
+  activeFiltersScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.xs,
+    paddingRight: 10,
   },
   activeFilterChip: {
     backgroundColor: MyCrewColors.accent,
@@ -1270,6 +1460,100 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: MyCrewColors.textPrimary,
     marginBottom: Spacing.md,
+  },
+  filterList: {
+    gap: Spacing.xs,
+  },
+  filterListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.md,
+  },
+  filterListText: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textPrimary,
+    flex: 1,
+  },
+  filterDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: MyCrewColors.cardBackground,
+    borderWidth: 1,
+    borderColor: MyCrewColors.border,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  filterDropdownText: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textPrimary,
+    flex: 1,
+  },
+  filterDropdownPlaceholder: {
+    color: MyCrewColors.gray,
+  },
+  pickerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'flex-end',
+  },
+  pickerContent: {
+    backgroundColor: MyCrewColors.background,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    maxHeight: height * 0.6,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: MyCrewColors.border,
+  },
+  pickerTitle: {
+    fontSize: Typography.headline,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
+  },
+  pickerList: {
+    paddingVertical: Spacing.sm,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+  },
+  pickerItemText: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textPrimary,
+  },
+  pickerItemTextActive: {
+    color: MyCrewColors.accent,
+    fontWeight: '600',
+  },
+  pickerDoneButton: {
+    backgroundColor: MyCrewColors.accent,
+    marginHorizontal: Spacing.xl,
+    marginVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  pickerDoneButtonText: {
+    fontSize: Typography.body,
+    fontWeight: '600',
+    color: MyCrewColors.background,
   },
   filterGrid: {
     flexDirection: 'row',

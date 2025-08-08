@@ -12,6 +12,7 @@ export const MyCrewColors = {
   favoriteStar: '#D9B66F',      // Gold for favorites
   cardBackground: '#FFFFFF',     // Pure white for cards
   navigationText: '#000000',     // Force black for navigation
+  border: '#E5E5EA',            // Border color for inputs and cards
   
   // Additional colors for React Native specific needs
   transparent: 'transparent',
