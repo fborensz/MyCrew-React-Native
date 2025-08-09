@@ -37,7 +37,7 @@
     },
     "plugins": [
       [
-        "expo-barcode-scanner",
+        "expo-camera",
         {
           "cameraPermission": "Permettre à MyCrew d'accéder à votre caméra pour scanner les codes QR."
         }

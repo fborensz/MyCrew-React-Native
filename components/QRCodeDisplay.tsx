@@ -2,7 +2,7 @@
 // Reusable component for displaying QR codes
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Contact, UserProfile } from '../types';
 import { QRCodeService } from '../services/QRCodeService';

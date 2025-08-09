@@ -1127,13 +1127,12 @@ export default function ContactsScreen() {
               style={styles.importMenuItem}
               onPress={() => {
                 setShowImportMenu(false);
-                // Option QR Code - non fonctionnelle pour le moment
+                navigation.navigate('QRScanner');
               }}
-              disabled={true}
+              activeOpacity={0.7}
             >
-              <Ionicons name="qr-code-outline" size={18} color={MyCrewColors.iconMuted} />
-              <Text style={[styles.importMenuText, styles.importMenuTextDisabled]}>Scan QR Code</Text>
-              <Text style={styles.importMenuBadge}>Bientôt</Text>
+              <Ionicons name="qr-code-outline" size={18} color={MyCrewColors.accent} />
+              <Text style={styles.importMenuText}>Scan QR Code</Text>
             </TouchableOpacity>
             
             <View style={styles.importMenuSeparator} />

@@ -1,5 +1,5 @@
-// MyCrew React Native - QR Scanner Screen 
-// Scanner caméra direct avec expo-camera
+// MyCrew React Native - QR Scanner Screen
+// SOLUTION A: Implementation avec expo-barcode-scanner
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -13,9 +13,8 @@ import {
   Vibration,
   ActivityIndicator,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useNavigation } from '@react-navigation/native';
-import type { StackNavigationProp } from '@react-navigation/stack';
+import { BarCodeScanner, BarCodeScannerResult } from 'expo-barcode-scanner';
+import { useNavigation, StackNavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -31,26 +30,36 @@ type NavigationProp = StackNavigationProp<RootStackParamList, 'QRScanner'>;
 
 export default function QRScannerScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [permission, requestPermission] = useCameraPermissions();
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const scanAnimation = useRef(new Animated.Value(0)).current;
+  const flashEnabled = useState(false)[0];
 
   useEffect(() => {
+    requestCameraPermission();
     startScanAnimation();
   }, []);
 
-  const handleRequestPermission = async () => {
-    const result = await requestPermission();
-    if (!result.granted) {
-      Alert.alert(
-        'Permission caméra requise',
-        'Cette application a besoin d\'accéder à votre caméra pour scanner les codes QR.',
-        [
-          { text: 'Annuler', onPress: () => navigation.goBack() },
-          { text: 'Réessayer', onPress: handleRequestPermission }
-        ]
-      );
+  const requestCameraPermission = async () => {
+    try {
+      const { status } = await BarCodeScanner.requestPermissionsAsync();
+      setHasPermission(status === 'granted');
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission caméra requise',
+          'Cette application a besoin d\'accéder à votre caméra pour scanner les codes QR. Veuillez autoriser l\'accès dans les paramètres.',
+          [
+            { text: 'Annuler', onPress: () => navigation.goBack() },
+            { text: 'Paramètres', onPress: () => BarCodeScanner.requestPermissionsAsync() }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Erreur demande permission:', error);
+      Alert.alert('Erreur', 'Impossible de demander les permissions de caméra');
+      navigation.goBack();
     }
   };
 
@@ -72,8 +81,7 @@ export default function QRScannerScreen() {
     animation.start();
   };
 
-  const handleBarCodeScanned = async (result: any) => {
-    const { type, data } = result;
+  const handleBarCodeScanned = async ({ type, data }: BarCodeScannerResult) => {
     if (scanned || isProcessing) return;
     
     setScanned(true);
@@ -207,30 +215,28 @@ export default function QRScannerScreen() {
     setIsProcessing(false);
   };
 
-  // Chargement des permissions
-  if (!permission) {
+  if (hasPermission === null) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={MyCrewColors.accent} />
-        <Text style={styles.loadingText}>Chargement de la caméra...</Text>
+        <Text style={styles.loadingText}>Demande d'autorisation...</Text>
       </View>
     );
   }
 
-  // Interface d'autorisation caméra
-  if (!permission.granted) {
+  if (hasPermission === false) {
     return (
       <View style={styles.centerContainer}>
-        <Ionicons name="camera-outline" size={80} color={MyCrewColors.accent} />
-        <Text style={styles.errorTitle}>Scanner QR Code</Text>
+        <Ionicons name="camera-off" size={64} color={MyCrewColors.iconMuted} />
+        <Text style={styles.errorTitle}>Caméra non autorisée</Text>
         <Text style={styles.errorText}>
-          Autorisez l'accès à la caméra pour scanner les codes QR automatiquement.
+          L'accès à la caméra est nécessaire pour scanner les codes QR.
         </Text>
-        <TouchableOpacity style={styles.button} onPress={handleRequestPermission}>
-          <Text style={styles.buttonText}>🎥 Autoriser la caméra</Text>
+        <TouchableOpacity style={styles.button} onPress={requestCameraPermission}>
+          <Text style={styles.buttonText}>Autoriser</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backButtonText}>← Retour</Text>
+          <Text style={styles.backButtonText}>Retour</Text>
         </TouchableOpacity>
       </View>
     );
@@ -238,26 +244,20 @@ export default function QRScannerScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView
+      <BarCodeScanner
+        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
         style={styles.scanner}
-        facing="back"
-        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ["qr"],
-        }}
+        barCodeTypes={[BarCodeScanner.Constants.BarCodeType.qr]}
       />
       
       {/* Overlay avec zone de scan */}
       <View style={styles.overlay}>
         {/* Titre */}
         <View style={styles.header}>
-          <Text style={styles.title}>📱 Scanner QR Code</Text>
+          <Text style={styles.title}>Scanner un QR Code MyCrew</Text>
           <Text style={styles.subtitle}>
-            Pointez la caméra vers un QR code MyCrew
+            Positionnez le QR code dans le cadre
           </Text>
-          {scanned && (
-            <Text style={styles.scannedText}>✅ QR Code détecté !</Text>
-          )}
         </View>
 
         {/* Zone de scan centrale */}
@@ -287,39 +287,8 @@ export default function QRScannerScreen() {
         {/* Instructions */}
         <View style={styles.instructions}>
           <Text style={styles.instructionText}>
-            {isProcessing 
-              ? "Traitement du QR code en cours..." 
-              : "Scannez un QR code partagé par un autre utilisateur MyCrew"
-            }
+            Scannez un QR code partagé par un autre utilisateur MyCrew
           </Text>
-          
-          {/* Bouton test pour générer un faux scan */}
-          {__DEV__ && (
-            <TouchableOpacity 
-              style={styles.testButton}
-              onPress={() => {
-                const testQRData = {
-                  type: "MyCrew_Contact",
-                  version: "1.0",
-                  data: {
-                    firstName: "Test",
-                    lastName: "Scanner",
-                    jobTitle: "Développeur",
-                    phone: "0123456789",
-                    email: "test@mycrew.fr",
-                    notes: "",
-                    locations: []
-                  }
-                };
-                handleBarCodeScanned({ 
-                  type: 'qr', 
-                  data: JSON.stringify(testQRData) 
-                });
-              }}
-            >
-              <Text style={styles.testButtonText}>🧪 Test Scanner</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Boutons d'action */}
@@ -509,36 +478,5 @@ const styles = StyleSheet.create({
     color: MyCrewColors.accent,
     fontSize: Typography.body,
     fontWeight: '500',
-  },
-  cancelButton: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
-  cancelButtonText: {
-    color: MyCrewColors.textSecondary,
-    fontSize: Typography.body,
-    fontWeight: '400',
-  },
-  scannedText: {
-    fontSize: Typography.subheadline,
-    color: MyCrewColors.accent,
-    fontWeight: '600',
-    marginTop: Spacing.sm,
-  },
-  testButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 20,
-    marginTop: Spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  testButtonText: {
-    color: MyCrewColors.white,
-    fontSize: Typography.caption,
-    fontWeight: '500',
-    textAlign: 'center',
   },
 });
