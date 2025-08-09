@@ -40,17 +40,30 @@ export default function QRScannerScreen() {
     startScanAnimation();
   }, []);
 
-  const handleRequestPermission = async () => {
-    const result = await requestPermission();
-    if (!result.granted) {
-      Alert.alert(
-        'Permission caméra requise',
-        'Cette application a besoin d\'accéder à votre caméra pour scanner les codes QR.',
-        [
-          { text: 'Annuler', onPress: () => navigation.goBack() },
-          { text: 'Réessayer', onPress: handleRequestPermission }
-        ]
-      );
+  // Demander automatiquement les permissions dès que possible
+  useEffect(() => {
+    if (permission && !permission.granted && permission.canAskAgain) {
+      requestCameraPermissionAuto();
+    }
+  }, [permission]);
+
+  const requestCameraPermissionAuto = async () => {
+    console.log('🎥 Demande automatique de permission caméra...');
+    try {
+      const result = await requestPermission();
+      if (!result.granted) {
+        // Si refusé, proposer de réessayer
+        Alert.alert(
+          'Permission caméra requise',
+          'Cette application a besoin d\'accéder à votre caméra pour scanner les codes QR.',
+          [
+            { text: 'Annuler', onPress: () => navigation.goBack() },
+            { text: 'Réessayer', onPress: requestCameraPermissionAuto }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Erreur demande permission:', error);
     }
   };
 
@@ -212,26 +225,42 @@ export default function QRScannerScreen() {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={MyCrewColors.accent} />
-        <Text style={styles.loadingText}>Chargement de la caméra...</Text>
+        <Text style={styles.loadingText}>🎥 Initialisation de la caméra...</Text>
+        <Text style={styles.loadingSubText}>
+          Une demande d'autorisation va apparaître
+        </Text>
       </View>
     );
   }
 
-  // Interface d'autorisation caméra
-  if (!permission.granted) {
+  // Si permission refusée définitivement
+  if (!permission.granted && !permission.canAskAgain) {
     return (
       <View style={styles.centerContainer}>
-        <Ionicons name="camera-outline" size={80} color={MyCrewColors.accent} />
-        <Text style={styles.errorTitle}>Scanner QR Code</Text>
+        <Ionicons name="settings-outline" size={80} color={MyCrewColors.accent} />
+        <Text style={styles.errorTitle}>Permission caméra refusée</Text>
         <Text style={styles.errorText}>
-          Autorisez l'accès à la caméra pour scanner les codes QR automatiquement.
+          Pour utiliser le scanner, activez les permissions caméra dans les paramètres de votre appareil.
         </Text>
-        <TouchableOpacity style={styles.button} onPress={handleRequestPermission}>
-          <Text style={styles.buttonText}>🎥 Autoriser la caméra</Text>
-        </TouchableOpacity>
+        <Text style={styles.settingsInstructions}>
+          Paramètres → Apps → Expo Go → Autorisations → Caméra
+        </Text>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>← Retour</Text>
         </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // En attente de permission (la demande va se faire automatiquement)
+  if (!permission.granted) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={MyCrewColors.accent} />
+        <Text style={styles.loadingText}>🎥 Demande d'autorisation...</Text>
+        <Text style={styles.loadingSubText}>
+          Veuillez autoriser l'accès à la caméra
+        </Text>
       </View>
     );
   }
@@ -540,5 +569,21 @@ const styles = StyleSheet.create({
     fontSize: Typography.caption,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  loadingSubText: {
+    marginTop: Spacing.sm,
+    fontSize: Typography.caption,
+    color: MyCrewColors.iconMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  settingsInstructions: {
+    fontSize: Typography.caption,
+    color: MyCrewColors.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
+    lineHeight: 18,
   },
 });

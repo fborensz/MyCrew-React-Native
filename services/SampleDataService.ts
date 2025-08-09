@@ -25,7 +25,8 @@ export class SampleDataService {
 
     const sampleContacts: Omit<Contact, 'id'>[] = [
       {
-        name: 'Marie Dubois',
+        firstName: 'Marie',
+        lastName: 'Dubois',
         jobTitle: 'Réalisatrice',
         phone: '+33 6 12 34 56 78',
         email: 'marie.dubois@cinema.fr',
@@ -53,7 +54,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Jean-Luc Martin',
+        firstName: 'Jean-Luc',
+        lastName: 'Martin',
         jobTitle: 'Chef opérateur',
         phone: '+33 6 98 76 54 32',
         email: 'jl.martin@image.fr',
@@ -72,7 +74,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Sophie Laurent',
+        firstName: 'Sophie',
+        lastName: 'Laurent',
         jobTitle: 'Ingénieur du Son',
         phone: '+33 6 45 67 89 12',
         email: 'sophie.laurent@audio.fr',
@@ -91,7 +94,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Pierre Moreau',
+        firstName: 'Pierre',
+        lastName: 'Moreau',
         jobTitle: '1er Assistant Réalisateur',
         phone: '+33 6 23 45 67 89',
         email: 'p.moreau@assistance.fr',
@@ -119,7 +123,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Camille Petit',
+        firstName: 'Camille',
+        lastName: 'Petit',
         jobTitle: 'Chef Décorateur',
         phone: '+33 6 78 90 12 34',
         email: 'camille.petit@decor.fr',
@@ -138,7 +143,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Alexandre Roux',
+        firstName: 'Alexandre',
+        lastName: 'Roux',
         jobTitle: 'Chef Électro (Gaffer)',
         phone: '+33 6 56 78 90 12',
         email: 'alex.roux@lumiere.fr',
@@ -157,7 +163,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Julie Blanc',
+        firstName: 'Julie',
+        lastName: 'Blanc',
         jobTitle: 'Monteuse',
         phone: '+33 6 34 56 78 90',
         email: 'julie.blanc@montage.fr',
@@ -176,7 +183,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Thomas Girard',
+        firstName: 'Thomas',
+        lastName: 'Girard',
         jobTitle: 'Régisseur Général',
         phone: '+33 6 12 90 78 56',
         email: 't.girard@regie.fr',
@@ -204,7 +212,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Anaïs Rousseau',
+        firstName: 'Anaïs',
+        lastName: 'Rousseau',
         jobTitle: 'Script',
         phone: '+33 6 87 65 43 21',
         email: 'anais.rousseau@script.fr',
@@ -223,7 +232,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Benoît Fournier',
+        firstName: 'Benoît',
+        lastName: 'Fournier',
         jobTitle: 'Cadreur',
         phone: '+33 6 11 22 33 44',
         email: 'benoit.fournier@cadrage.fr',
@@ -242,7 +252,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Clara Mercier',
+        firstName: 'Clara',
+        lastName: 'Mercier',
         jobTitle: 'Maquilleuse',
         phone: '+33 6 55 66 77 88',
         email: 'clara.mercier@maquillage.fr',
@@ -261,7 +272,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'David Leroy',
+        firstName: 'David',
+        lastName: 'Leroy',
         jobTitle: 'Producteur',
         phone: '+33 6 99 88 77 66',
         email: 'david.leroy@prod.fr',
@@ -289,7 +301,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Élodie Simon',
+        firstName: 'Élodie',
+        lastName: 'Simon',
         jobTitle: 'Costumière',
         phone: '+33 6 22 33 44 55',
         email: 'elodie.simon@costume.fr',
@@ -308,7 +321,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Fabien Durand',
+        firstName: 'Fabien',
+        lastName: 'Durand',
         jobTitle: 'Chef Machiniste',
         phone: '+33 6 33 44 55 66',
         email: 'fabien.durand@machinisme.fr',
@@ -327,7 +341,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Gabrielle Moreau',
+        firstName: 'Gabrielle',
+        lastName: 'Moreau',
         jobTitle: 'Assistante Réalisatrice',
         phone: '+33 6 44 55 66 77',
         email: 'gabrielle.moreau@assist.fr',
@@ -346,7 +361,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Hugo Lemaire',
+        firstName: 'Hugo',
+        lastName: 'Lemaire',
         jobTitle: 'Directeur Photo',
         phone: '+33 6 66 77 88 99',
         email: 'hugo.lemaire@photo.fr',
@@ -365,7 +381,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Inès Fabre',
+        firstName: 'Inès',
+        lastName: 'Fabre',
         jobTitle: 'Réalisatrice',
         phone: '+33 6 77 88 99 00',
         email: 'ines.fabre@real.fr',
@@ -384,7 +401,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Julien Barbier',
+        firstName: 'Julien',
+        lastName: 'Barbier',
         jobTitle: 'Perchman',
         phone: '+33 6 88 99 00 11',
         email: 'julien.barbier@son.fr',
@@ -403,7 +421,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Karine Vidal',
+        firstName: 'Karine',
+        lastName: 'Vidal',
         jobTitle: 'Monteuse Son',
         phone: '+33 6 00 11 22 33',
         email: 'karine.vidal@postprod.fr',
@@ -422,7 +441,8 @@ export class SampleDataService {
         ]
       },
       {
-        name: 'Laurent Carre',
+        firstName: 'Laurent',
+        lastName: 'Carre',
         jobTitle: 'Étalonneur',
         phone: '+33 6 11 00 99 88',
         email: 'laurent.carre@color.fr',
