@@ -18,6 +18,7 @@ import AddContactScreen from './screens/AddContactScreen';
 import EditContactScreen from './screens/EditContactScreen';
 import QRScannerScreen from './screens/QRScannerScreen';
 import QRCodeDisplayScreen from './screens/QRCodeDisplayScreen';
+import MultiQRExportScreen from './screens/MultiQRExportScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import UserProfileEditorScreen from './screens/UserProfileEditorScreen';
 import SettingsScreen from './screens/SettingsScreen';
@@ -108,6 +109,11 @@ export default function App() {
           name="QRCodeDisplay" 
           component={QRCodeDisplayScreen}
           options={{ title: 'Code QR' }}
+        />
+        <Stack.Screen 
+          name="MultiQRExport" 
+          component={MultiQRExportScreen}
+          options={{ title: 'Export QR Multi-Contacts' }}
         />
         <Stack.Screen 
           name="UserProfileEditor" 

@@ -30,6 +30,7 @@ import { COUNTRIES_WITH_REGIONS } from '../data/Locations';
 import ExportModal from '../components/ExportModal';
 import QRCodeDisplay from '../components/QRCodeDisplay';
 import { ImportService } from '../services/ImportService';
+import { FilterService } from '../services/FilterService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -702,26 +703,8 @@ export default function ContactsScreen() {
 
   // Filtrage et groupement des contacts optimisés
   const contactSections = useMemo(() => {
-    let filteredResults = [...contacts];
-    
-    // Recherche textuelle simple
-    if (searchText.trim()) {
-      const searchLower = searchText.toLowerCase().trim();
-      filteredResults = filteredResults.filter(contact => {
-        try {
-          const fullName = getContactFullName(contact);
-          return (
-            fullName.toLowerCase().includes(searchLower) ||
-            (contact.jobTitle && contact.jobTitle.toLowerCase().includes(searchLower)) ||
-            (contact.phone && contact.phone.includes(searchText.trim())) ||
-            (contact.email && contact.email.toLowerCase().includes(searchLower))
-          );
-        } catch (error) {
-          console.error('Filter error for contact:', contact, error);
-          return false;
-        }
-      });
-    }
+    // Appliquer d'abord les filtres actifs
+    let filteredResults = FilterService.applyAllFilters(contacts, activeFilters, searchText);
 
     // Groupement par lettre directement dans le useMemo
     const grouped = filteredResults.reduce((acc, contact) => {
@@ -742,7 +725,7 @@ export default function ContactsScreen() {
         return (a.firstName || '').localeCompare(b.firstName || '', 'fr', { sensitivity: 'base' });
       })
     }));
-  }, [contacts, searchText]);
+  }, [contacts, searchText, activeFilters]);
   
 
   const handleContactPress = (contact: Contact) => {
@@ -1111,6 +1094,8 @@ export default function ContactsScreen() {
           onClose={() => setShowExportModal(false)}
           data={exportData}
           type={exportType}
+          filters={activeFilters}
+          searchText={searchText}
         />
       )}
 

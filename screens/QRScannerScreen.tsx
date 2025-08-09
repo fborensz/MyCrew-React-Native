@@ -112,59 +112,19 @@ export default function QRScannerScreen() {
         return;
       }
 
-      // Parser les données QR
-      const contact = QRCodeService.parseQRData(data);
-      
-      if (!contact) {
-        Alert.alert(
-          'Erreur de lecture',
-          'Impossible de lire les données du QR code. Le format pourrait être corrompu.',
-          [{ text: 'OK', onPress: () => resetScanner() }]
-        );
-        return;
-      }
+      // Détecter le type de QR code
+      const qrType = QRCodeService.getQRType(data);
+      console.log('🔍 Type QR détecté:', qrType);
 
-      // Vérifier si le contact existe déjà
-      const db = DatabaseService.getInstance();
-      const existingContact = await db.findContactByNameAndPhone(
-        `${contact.firstName} ${contact.lastName}`,
-        contact.phone
-      );
-
-      if (existingContact) {
-        Alert.alert(
-          'Contact existant',
-          `${contact.firstName} ${contact.lastName} existe déjà dans vos contacts.`,
-          [
-            { text: 'Voir', onPress: () => {
-              navigation.replace('ContactDetail', { contactId: existingContact.id });
-            }},
-            { text: 'Scanner à nouveau', onPress: () => resetScanner() }
-          ]
-        );
-        return;
-      }
-
-      // Prévisualiser et confirmer l'ajout
-      const contactInfo = QRCodeService.getQRPreviewInfo(data);
-      if (contactInfo) {
-        Alert.alert(
-          'Nouveau contact détecté',
-          `${contactInfo.name}\n${contactInfo.jobTitle}\n\nVoulez-vous ajouter ce contact ?`,
-          [
-            { text: 'Non', onPress: () => resetScanner() },
-            { text: 'Oui', onPress: () => addContact(contact) }
-          ]
-        );
+      if (qrType === 'single') {
+        await handleSingleContactQR(data);
+      } else if (qrType === 'multi') {
+        await handleMultiContactQR(data);
       } else {
-        // Fallback si pas de preview
         Alert.alert(
-          'Ajouter ce contact ?',
-          `${contact.firstName} ${contact.lastName} sera ajouté à vos contacts.`,
-          [
-            { text: 'Non', onPress: () => resetScanner() },
-            { text: 'Oui', onPress: () => addContact(contact) }
-          ]
+          'Format non supporté',
+          'Ce QR code ne contient pas de données MyCrew valides.',
+          [{ text: 'OK', onPress: () => resetScanner() }]
         );
       }
 
@@ -176,6 +136,132 @@ export default function QRScannerScreen() {
         [{ text: 'OK', onPress: () => resetScanner() }]
       );
     }
+  };
+
+  const handleSingleContactQR = async (data: string) => {
+    // Parser les données QR
+    const contact = QRCodeService.parseQRData(data);
+    
+    if (!contact) {
+      Alert.alert(
+        'Erreur de lecture',
+        'Impossible de lire les données du QR code. Le format pourrait être corrompu.',
+        [{ text: 'OK', onPress: () => resetScanner() }]
+      );
+      return;
+    }
+
+    // Vérifier si le contact existe déjà
+    const db = DatabaseService.getInstance();
+    const existingContact = await db.findContactByNameAndPhone(
+      `${contact.firstName} ${contact.lastName}`,
+      contact.phone
+    );
+
+    if (existingContact) {
+      Alert.alert(
+        'Contact existant',
+        `${contact.firstName} ${contact.lastName} existe déjà dans vos contacts.`,
+        [
+          { text: 'Voir', onPress: () => {
+            navigation.replace('ContactDetail', { contactId: existingContact.id });
+          }},
+          { text: 'Scanner à nouveau', onPress: () => resetScanner() }
+        ]
+      );
+      return;
+    }
+
+    // Prévisualiser et confirmer l'ajout
+    const contactInfo = QRCodeService.getQRPreviewInfo(data);
+    if (contactInfo) {
+      Alert.alert(
+        'Nouveau contact détecté',
+        `${contactInfo.name}\n${contactInfo.jobTitle}\n\nVoulez-vous ajouter ce contact ?`,
+        [
+          { text: 'Non', onPress: () => resetScanner() },
+          { text: 'Oui', onPress: () => addContact(contact) }
+        ]
+      );
+    } else {
+      // Fallback si pas de preview
+      Alert.alert(
+        'Ajouter ce contact ?',
+        `${contact.firstName} ${contact.lastName} sera ajouté à vos contacts.`,
+        [
+          { text: 'Non', onPress: () => resetScanner() },
+          { text: 'Oui', onPress: () => addContact(contact) }
+        ]
+      );
+    }
+  };
+
+  const handleMultiContactQR = async (data: string) => {
+    // Parser les données QR multi-contacts
+    const result = QRCodeService.parseMultiContactQRData(data);
+    
+    if (!result.success || !result.contacts) {
+      Alert.alert(
+        'Erreur de lecture',
+        result.error || 'Impossible de lire les contacts du QR code.',
+        [{ text: 'OK', onPress: () => resetScanner() }]
+      );
+      return;
+    }
+
+    const contacts = result.contacts;
+    console.log(`📝 ${contacts.length} contacts détectés dans le QR code`);
+
+    // Vérifier les contacts existants
+    const db = DatabaseService.getInstance();
+    const existingContacts: string[] = [];
+    const newContacts: Contact[] = [];
+
+    for (const contact of contacts) {
+      const existing = await db.findContactByNameAndPhone(
+        `${contact.firstName} ${contact.lastName}`,
+        contact.phone
+      );
+      if (existing) {
+        existingContacts.push(`${contact.firstName} ${contact.lastName}`);
+      } else {
+        newContacts.push(contact);
+      }
+    }
+
+    // Afficher le résumé et proposer l'import
+    let message = `${contacts.length} contacts détectés\n\n`;
+    
+    if (newContacts.length > 0) {
+      message += `✅ ${newContacts.length} nouveaux contacts\n`;
+    }
+    
+    if (existingContacts.length > 0) {
+      message += `⚠️ ${existingContacts.length} contacts déjà existants\n`;
+      if (existingContacts.length <= 3) {
+        message += `(${existingContacts.join(', ')})\n`;
+      }
+    }
+
+    if (newContacts.length === 0) {
+      Alert.alert(
+        'Aucun nouveau contact',
+        'Tous les contacts de ce QR code existent déjà dans votre liste.',
+        [{ text: 'OK', onPress: () => resetScanner() }]
+      );
+      return;
+    }
+
+    message += `\nVoulez-vous ajouter les ${newContacts.length} nouveaux contacts ?`;
+
+    Alert.alert(
+      'Contacts multiples détectés',
+      message,
+      [
+        { text: 'Non', onPress: () => resetScanner() },
+        { text: `Ajouter ${newContacts.length}`, onPress: () => addMultipleContacts(newContacts) }
+      ]
+    );
   };
 
   const addContact = async (contact: Contact) => {
@@ -210,6 +296,62 @@ export default function QRScannerScreen() {
       Alert.alert(
         'Erreur',
         'Impossible d\'ajouter le contact. Veuillez réessayer.',
+        [{ text: 'OK', onPress: () => resetScanner() }]
+      );
+    }
+  };
+
+  const addMultipleContacts = async (contacts: Contact[]) => {
+    try {
+      const db = DatabaseService.getInstance();
+      let addedCount = 0;
+      const errors: string[] = [];
+
+      for (const contact of contacts) {
+        try {
+          await db.createContact({
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            jobTitle: contact.jobTitle,
+            phone: contact.phone,
+            email: contact.email,
+            notes: contact.notes,
+            isFavorite: false,
+            locations: contact.locations,
+          });
+          addedCount++;
+        } catch (error) {
+          console.error('❌ Erreur ajout contact:', contact.firstName, contact.lastName, error);
+          errors.push(`${contact.firstName} ${contact.lastName}`);
+        }
+      }
+
+      if (addedCount === contacts.length) {
+        // Tous ajoutés avec succès
+        Alert.alert(
+          'Contacts ajoutés !',
+          `${addedCount} contacts ont été ajoutés avec succès.`,
+          [
+            { text: 'Voir contacts', onPress: () => {
+              navigation.replace('ContactList');
+            }},
+            { text: 'Continuer scan', onPress: () => resetScanner() }
+          ]
+        );
+      } else {
+        // Partiellement réussi
+        Alert.alert(
+          'Import partiel',
+          `${addedCount}/${contacts.length} contacts ajoutés.\n\nErreurs: ${errors.join(', ')}`,
+          [{ text: 'OK', onPress: () => resetScanner() }]
+        );
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur ajout multiple contacts:', error);
+      Alert.alert(
+        'Erreur',
+        'Impossible d\'ajouter les contacts. Veuillez réessayer.',
         [{ text: 'OK', onPress: () => resetScanner() }]
       );
     }
@@ -322,32 +464,59 @@ export default function QRScannerScreen() {
             }
           </Text>
           
-          {/* Bouton test pour générer un faux scan */}
+          {/* Boutons de test en mode développement */}
           {__DEV__ && (
-            <TouchableOpacity 
-              style={styles.testButton}
-              onPress={() => {
-                const testQRData = {
-                  type: "MyCrew_Contact",
-                  version: "1.0",
-                  data: {
-                    firstName: "Test",
-                    lastName: "Scanner",
-                    jobTitle: "Développeur",
-                    phone: "0123456789",
-                    email: "test@mycrew.fr",
-                    notes: "",
-                    locations: []
+            <View style={styles.devButtons}>
+              <TouchableOpacity 
+                style={styles.testButton}
+                onPress={() => {
+                  const testQRData = {
+                    type: "MyCrew_Contact",
+                    version: "1.0",
+                    data: {
+                      firstName: "Test",
+                      lastName: "Scanner", 
+                      jobTitle: "Développeur",
+                      phone: "0123456789",
+                      email: "test@mycrew.fr",
+                      notes: "",
+                      locations: []
+                    }
+                  };
+                  handleBarCodeScanned({ 
+                    type: 'qr', 
+                    data: JSON.stringify(testQRData) 
+                  });
+                }}
+              >
+                <Text style={styles.testButtonText}>🧪 Test Scan</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.testButton}
+                onPress={async () => {
+                  const db = DatabaseService.getInstance();
+                  const contacts = await db.getAllContacts();
+                  if (contacts.length >= 5) {
+                    const testContacts = contacts.slice(0, 5);
+                    const result = QRCodeService.generateMultiContactQRData(testContacts);
+                    if (result.success) {
+                      console.log('🧪 Test multi-contact QR généré');
+                      handleBarCodeScanned({ 
+                        type: 'qr', 
+                        data: result.data! 
+                      });
+                    } else {
+                      Alert.alert('Test Error', result.error);
+                    }
+                  } else {
+                    Alert.alert('Test Error', 'Il faut au moins 5 contacts en base');
                   }
-                };
-                handleBarCodeScanned({ 
-                  type: 'qr', 
-                  data: JSON.stringify(testQRData) 
-                });
-              }}
-            >
-              <Text style={styles.testButtonText}>🧪 Test Scanner</Text>
-            </TouchableOpacity>
+                }}
+              >
+                <Text style={styles.testButtonText}>📊 Test Multi QR</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -555,14 +724,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: Spacing.sm,
   },
+  devButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: Spacing.lg,
+    gap: Spacing.sm,
+  },
   testButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.sm,
     borderRadius: 20,
-    marginTop: Spacing.lg,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    flex: 1,
+    maxWidth: 110,
   },
   testButtonText: {
     color: MyCrewColors.white,

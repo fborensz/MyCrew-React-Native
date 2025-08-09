@@ -16,8 +16,10 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 
 import { MyCrewColors } from '../constants/Colors';
-import { Contact, UserProfile } from '../types';
+import { Contact, UserProfile, RootStackParamList } from '../types';
 import { ExportService, ExportFormat } from '../services/ExportService';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 
 const { width, height } = Dimensions.get('window');
 
@@ -26,9 +28,20 @@ interface ExportModalProps {
   onClose: () => void;
   data: Contact | UserProfile | Contact[];
   type: 'contact' | 'profile' | 'contacts';
+  // Filtres actifs pour les exports multi-contacts
+  filters?: {
+    job: string | null;
+    country: string | null;
+    regions: string[];
+    isHoused: boolean;
+    isLocalResident: boolean;
+    hasVehicle: boolean;
+  };
+  searchText?: string;
 }
 
-export default function ExportModal({ visible, onClose, data, type }: ExportModalProps) {
+export default function ExportModal({ visible, onClose, data, type, filters, searchText }: ExportModalProps) {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [showQR, setShowQR] = useState(false);
@@ -40,15 +53,23 @@ export default function ExportModal({ visible, onClose, data, type }: ExportModa
     
     if (type === 'contact' && !Array.isArray(data)) {
       qrData = ExportService.exportContactForQR(data as Contact);
+      setQrValue(qrData);
+      setShowQR(true);
     } else if (type === 'profile' && !Array.isArray(data)) {
       qrData = ExportService.exportProfileForQR(data as UserProfile);
+      setQrValue(qrData);
+      setShowQR(true);
+    } else if (type === 'contacts' && Array.isArray(data)) {
+      // Multi-contact QR - navigate to selection screen with filters
+      onClose(); // Close current modal first
+      navigation.navigate('MultiQRExport', {
+        filters,
+        searchText
+      });
     } else {
-      Alert.alert('Erreur', 'Le QR code n\'est disponible que pour un contact ou profil individuel');
+      Alert.alert('Erreur', 'Type de données non supporté pour QR code');
       return;
     }
-    
-    setQrValue(qrData);
-    setShowQR(true);
   };
 
   const handleFormatSelect = (format: ExportFormat) => {
@@ -132,7 +153,7 @@ export default function ExportModal({ visible, onClose, data, type }: ExportModa
     }
   };
 
-  const isQRAvailable = type !== 'contacts';
+  const isQRAvailable = true; // Now available for all types including multi-contacts
 
   return (
     <Modal
@@ -169,19 +190,19 @@ export default function ExportModal({ visible, onClose, data, type }: ExportModa
                 <View style={styles.qrIcon}>
                   <Ionicons name="qr-code" size={60} color={MyCrewColors.accent} />
                 </View>
-                <Text style={styles.qrButtonText}>QR Code</Text>
+                <Text style={styles.qrButtonText}>
+                  {type === 'contacts' ? 'QR Multi-Contacts' : 'QR Code'}
+                </Text>
               </TouchableOpacity>
             </View>
           )}
 
           {/* Separator */}
-          {isQRAvailable && (
-            <View style={styles.separator}>
-              <View style={styles.separatorLine} />
-              <Text style={styles.separatorText}>ou</Text>
-              <View style={styles.separatorLine} />
-            </View>
-          )}
+          <View style={styles.separator}>
+            <View style={styles.separatorLine} />
+            <Text style={styles.separatorText}>ou</Text>
+            <View style={styles.separatorLine} />
+          </View>
 
           {/* File Format Options */}
           <View style={styles.formatsSection}>

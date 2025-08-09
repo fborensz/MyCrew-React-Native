@@ -137,7 +137,22 @@ export type RootStackParamList = {
   QRCodeDisplay: {
     contact?: Contact;
     profile?: UserProfile;
-    qrData?: any;
+    qrData?: string;
+    title?: string;
+    subtitle?: string;
+    isMultiContact?: boolean;
+    contactCount?: number;
+  };
+  MultiQRExport: {
+    filters?: {
+      job: string | null;
+      country: string | null;
+      regions: string[];
+      isHoused: boolean;
+      isLocalResident: boolean;
+      hasVehicle: boolean;
+    };
+    searchText?: string;
   };
   Profile: undefined;
   UserProfileEditor: undefined;
