@@ -237,6 +237,7 @@ interface FilterModalProps {
 function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearFilters }: FilterModalProps) {
   const [tempFilters, setTempFilters] = useState(activeFilters);
   const [showJobPicker, setShowJobPicker] = useState(false);
+  const [selectedJobDepartment, setSelectedJobDepartment] = useState<string | null>(null);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showRegionPicker, setShowRegionPicker] = useState(false);
   
@@ -248,36 +249,56 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
     console.log('FilterModal visible:', visible);
   }, [visible]);
 
-  const allJobs = React.useMemo(() => {
+  const allDepartments = React.useMemo(() => {
     try {
       if (FILM_DEPARTMENTS && FILM_DEPARTMENTS.length > 0) {
-        // Convert all jobs to masculine form to avoid filter bugs (réalisateur/réalisatrice)
-        return FILM_DEPARTMENTS.flatMap(dept => dept.jobs).map(job => {
-          // Convert feminine forms to masculine
-          const masculineJobs = {
-            'Réalisatrice': 'Réalisateur',
-            'Maquilleuse': 'Maquilleur',
-            'Costumière': 'Costumier',
-            'Assistante Réalisatrice': 'Assistant Réalisateur',
-            'Monteuse': 'Monteur',
-            'Monteuse Son': 'Monteur Son',
-            'Scripte': 'Script'
-          };
-          return masculineJobs[job as keyof typeof masculineJobs] || job;
-        }).filter((job, index, array) => array.indexOf(job) === index); // Remove duplicates
+        const departments = FILM_DEPARTMENTS.map(dept => dept.name).sort();
+        // Put "Autres Spécialités" at the end
+        return departments.filter(d => d !== 'Autres Spécialités')
+          .concat(departments.filter(d => d === 'Autres Spécialités'));
       }
-      // Fallback data if import fails
       return [
-        'Réalisateur', 'Chef opérateur', 'Cadreur', 'Ingénieur du Son', 'Chef Décorateur',
-        'Assistant Réalisateur', 'Script', 'Monteur', 'Producteur', 'Régisseur Général',
-        'Chef Électro (Gaffer)', 'Maquilleur', 'Costumier', 'Chef Machiniste',
-        'Directeur Photo', 'Perchman', 'Monteur Son', 'Étalonneur'
+        'Mise en scène', 'Image', 'Son', 'Lumière', 'Régie', 'Décors', 
+        'Costumes', 'Maquillage et Coiffure', 'Production', 'Post-Production',
+        'Effets Spéciaux', 'Cascades et Sécurité', 'Autres Spécialités'
       ];
     } catch (error) {
-      console.error('Error loading jobs:', error);
-      return ['Réalisateur', 'Chef opérateur', 'Cadreur', 'Ingénieur du Son', 'Chef Décorateur'];
+      console.error('Error loading departments:', error);
+      return ['Mise en scène', 'Image', 'Son', 'Lumière', 'Régie'];
     }
   }, []);
+
+  const getJobsForDepartment = (department: string) => {
+    try {
+      if (FILM_DEPARTMENTS && FILM_DEPARTMENTS.length > 0) {
+        const dept = FILM_DEPARTMENTS.find(d => d.name === department);
+        return dept ? dept.jobs.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' })) : [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error loading jobs for department:', error);
+      return [];
+    }
+  };
+
+  const getIconForDepartment = (department: string) => {
+    const icons = {
+      "Mise en scène": "film-outline",
+      "Image": "camera",
+      "Son": "mic",
+      "Lumière": "bulb",
+      "Régie": "construct",
+      "Décors": "build",
+      "Costumes": "shirt",
+      "Maquillage et Coiffure": "color-palette",
+      "Production": "briefcase",
+      "Post-Production": "laptop",
+      "Effets Spéciaux": "sparkles",
+      "Cascades et Sécurité": "shield",
+      "Autres Spécialités": "ellipsis-horizontal-circle"
+    };
+    return icons[department as keyof typeof icons] || 'help-circle';
+  };
 
   const allCountries = React.useMemo(() => {
     try {
@@ -376,7 +397,7 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
     return null;
   }
 
-  console.log('FilterModal rendering with allJobs:', allJobs.length, 'allCountries:', allCountries.length);
+  console.log('FilterModal rendering with allDepartments:', allDepartments.length, 'allCountries:', allCountries.length);
 
   return (
     <Modal
@@ -505,38 +526,78 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
         <View style={styles.pickerOverlay}>
           <View style={styles.pickerContent}>
             <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Choisir un métier</Text>
-              <TouchableOpacity onPress={() => setShowJobPicker(false)}>
+              {selectedJobDepartment ? (
+                <>
+                  <TouchableOpacity 
+                    onPress={() => setSelectedJobDepartment(null)}
+                    style={styles.backButton}
+                  >
+                    <Ionicons name="chevron-back" size={24} color={MyCrewColors.accent} />
+                  </TouchableOpacity>
+                  <Text style={styles.pickerTitle}>{selectedJobDepartment}</Text>
+                </>
+              ) : (
+                <Text style={styles.pickerTitle}>Choisir une catégorie</Text>
+              )}
+              <TouchableOpacity onPress={() => {
+                setShowJobPicker(false);
+                setSelectedJobDepartment(null);
+              }}>
                 <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.pickerList}>
-              <TouchableOpacity
-                style={styles.pickerItem}
-                onPress={() => {
-                  setTempFilters(prev => ({ ...prev, job: null }));
-                  setShowJobPicker(false);
-                }}
-              >
-                <Text style={[styles.pickerItemText, !tempFilters.job && styles.pickerItemTextActive]}>Aucun filtre</Text>
-              </TouchableOpacity>
-              {allJobs.map((job) => (
-                <TouchableOpacity
-                  key={job}
-                  style={styles.pickerItem}
-                  onPress={() => {
-                    toggleJobFilter(job);
-                    setShowJobPicker(false);
-                  }}
-                >
-                  <Text style={[styles.pickerItemText, tempFilters.job === job && styles.pickerItemTextActive]}>
-                    {job}
-                  </Text>
-                  {tempFilters.job === job && (
-                    <Ionicons name="checkmark" size={20} color={MyCrewColors.accent} />
-                  )}
-                </TouchableOpacity>
-              ))}
+              {!selectedJobDepartment ? (
+                // Department selection
+                <>
+                  <TouchableOpacity
+                    style={styles.pickerItem}
+                    onPress={() => {
+                      setTempFilters(prev => ({ ...prev, job: null }));
+                      setShowJobPicker(false);
+                    }}
+                  >
+                    <Text style={[styles.pickerItemText, !tempFilters.job && styles.pickerItemTextActive]}>Aucun filtre</Text>
+                  </TouchableOpacity>
+                  {allDepartments.map((department) => (
+                    <TouchableOpacity
+                      key={department}
+                      style={styles.departmentPickerItem}
+                      onPress={() => setSelectedJobDepartment(department)}
+                    >
+                      <View style={styles.departmentIcon}>
+                        <Ionicons 
+                          name={getIconForDepartment(department) as any} 
+                          size={20} 
+                          color={MyCrewColors.accent} 
+                        />
+                      </View>
+                      <Text style={styles.pickerItemText}>{department}</Text>
+                      <Ionicons name="chevron-forward" size={20} color={MyCrewColors.iconMuted} />
+                    </TouchableOpacity>
+                  ))}
+                </>
+              ) : (
+                // Job selection within department
+                getJobsForDepartment(selectedJobDepartment).map((job) => (
+                  <TouchableOpacity
+                    key={job}
+                    style={styles.pickerItem}
+                    onPress={() => {
+                      toggleJobFilter(job);
+                      setShowJobPicker(false);
+                      setSelectedJobDepartment(null);
+                    }}
+                  >
+                    <Text style={[styles.pickerItemText, tempFilters.job === job && styles.pickerItemTextActive]}>
+                      {job}
+                    </Text>
+                    {tempFilters.job === job && (
+                      <Ionicons name="checkmark" size={20} color={MyCrewColors.accent} />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
             </ScrollView>
           </View>
         </View>
@@ -1200,11 +1261,11 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.sm,
     marginVertical: 2, // 50% de Spacing.xs (4)
     borderRadius: 24, // Plus d'arrondis (xl * 1.5)
-    padding: Spacing.md,
+    padding: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'flex-start',
     ...Shadows.medium,
-    minHeight: 80,
+    minHeight: 100,
   },
   profileQRIcon: {
     marginRight: Spacing.md,
@@ -1226,12 +1287,13 @@ const styles = StyleSheet.create({
   },
   profileJobBadges: {
     marginTop: 0,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.md,
   },
   profileLocation: {
     fontSize: Typography.small,
     color: MyCrewColors.background,
     opacity: 0.8,
+    marginTop: Spacing.sm,
   },
   profileEmpty: {
     fontSize: Typography.subheadline,
@@ -1652,6 +1714,24 @@ const styles = StyleSheet.create({
   pickerItemTextActive: {
     color: MyCrewColors.accent,
     fontWeight: '600',
+  },
+  departmentPickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    gap: Spacing.md,
+  },
+  departmentIcon: {
+    width: 36,
+    height: 36,
+    backgroundColor: `${MyCrewColors.accent}15`,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButton: {
+    padding: Spacing.xs,
   },
   pickerDoneButton: {
     backgroundColor: MyCrewColors.accent,
