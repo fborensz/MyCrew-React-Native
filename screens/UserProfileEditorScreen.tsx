@@ -395,7 +395,7 @@ export default function UserProfileEditorScreen() {
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, styles.jobInputGroup]}>
             <Text style={styles.label}>
               Métier *
               {errors.jobTitle && <Text style={styles.errorText}> - {errors.jobTitle.message}</Text>}
@@ -465,13 +465,7 @@ export default function UserProfileEditorScreen() {
 
         {/* Lieux de travail */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Lieux de travail</Text>
-            <TouchableOpacity style={styles.addButton} onPress={addLocation}>
-              <Ionicons name="add" size={20} color={MyCrewColors.accent} />
-              <Text style={styles.addButtonText}>Ajouter</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.sectionTitle}>Lieux de travail</Text>
           
           {locations.map((location, index) => (
             <View key={index} style={styles.locationCard}>
@@ -569,6 +563,11 @@ export default function UserProfileEditorScreen() {
               </View>
             </View>
           ))}
+          
+          <TouchableOpacity style={styles.addLocationButton} onPress={addLocation}>
+            <Ionicons name="add" size={20} color={MyCrewColors.accent} />
+            <Text style={styles.addButtonText}>Ajouter</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Bouton de sauvegarde */}
@@ -704,6 +703,9 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: Spacing.lg,
   },
+  jobInputGroup: {
+    marginTop: Spacing.md,
+  },
   label: {
     fontSize: Typography.body,
     fontWeight: '500',
@@ -743,6 +745,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
+  },
+  addLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
   addButtonText: {
     color: MyCrewColors.accent,

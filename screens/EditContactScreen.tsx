@@ -20,7 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { MyCrewColors } from '../constants/Colors';
 import { contactValidationSchema } from '../utils/validation';
-import { FILM_DEPARTMENTS } from '../data/JobTitles';
+import { JobTitles } from '../data/JobTitles';
+import { COUNTRIES_WITH_REGIONS } from '../data/Locations';
 import { DatabaseService, WorkLocation, Contact } from '../services/DatabaseService';
 import { ContactFormData, RootStackParamList } from '../types';
 
@@ -69,6 +70,9 @@ export default function EditContactScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showJobPicker, setShowJobPicker] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [showCountryPicker, setShowCountryPicker] = useState<{show: boolean, locationIndex: number}>({show: false, locationIndex: -1});
+  const [showRegionPicker, setShowRegionPicker] = useState<{show: boolean, locationIndex: number}>({show: false, locationIndex: -1});
   const [locations, setLocations] = useState<Omit<WorkLocation, 'id'>[]>([]);
   const [contact, setContact] = useState<Contact | null>(null);
 
@@ -211,34 +215,84 @@ export default function EditContactScreen() {
     setValue('locations', updatedLocations);
   };
 
+  const hasLocationStatus = (location: Omit<WorkLocation, 'id'>) => {
+    return location.isLocalResident || location.hasVehicle || location.isHoused;
+  };
+
   const JobPicker = () => {
     if (!showJobPicker) return null;
+
+    if (!selectedDepartment) {
+      // Show department selection
+      return (
+        <View style={styles.jobPickerContainer}>
+          <View style={styles.jobPickerHeader}>
+            <Text style={styles.jobPickerTitle}>Choisir une catégorie</Text>
+            <TouchableOpacity onPress={() => {
+              setShowJobPicker(false);
+              setSelectedDepartment(null);
+            }}>
+              <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.departmentsList}>
+            {Object.keys(JobTitles.departments).sort().filter(d => d !== 'Autres Spécialités')
+              .concat(Object.keys(JobTitles.departments).filter(d => d === 'Autres Spécialités'))
+              .map((department) => (
+              <TouchableOpacity
+                key={department}
+                style={styles.departmentCard}
+                onPress={() => setSelectedDepartment(department)}
+              >
+                <View style={styles.departmentIcon}>
+                  <Ionicons 
+                    name={JobTitles.getIconForDepartment(department) as any} 
+                    size={20} 
+                    color={MyCrewColors.accent} 
+                  />
+                </View>
+                <Text style={styles.departmentName}>{department}</Text>
+                <Ionicons name="chevron-forward" size={20} color={MyCrewColors.iconMuted} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      );
+    }
+
+    // Show jobs for selected department
+    const departmentJobs = JobTitles.getJobsForDepartment(selectedDepartment);
     
     return (
       <View style={styles.jobPickerContainer}>
         <View style={styles.jobPickerHeader}>
-          <Text style={styles.jobPickerTitle}>Choisir un métier</Text>
-          <TouchableOpacity onPress={() => setShowJobPicker(false)}>
+          <TouchableOpacity 
+            onPress={() => setSelectedDepartment(null)}
+            style={styles.backButton}
+          >
+            <Ionicons name="chevron-back" size={24} color={MyCrewColors.accent} />
+          </TouchableOpacity>
+          <Text style={styles.jobPickerTitle}>{selectedDepartment}</Text>
+          <TouchableOpacity onPress={() => {
+            setShowJobPicker(false);
+            setSelectedDepartment(null);
+          }}>
             <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
           </TouchableOpacity>
         </View>
         <ScrollView style={styles.jobsList}>
-          {FILM_DEPARTMENTS.map((dept) => (
-            <View key={dept.name} style={styles.department}>
-              <Text style={styles.departmentTitle}>{dept.name}</Text>
-              {dept.jobs.map((job) => (
-                <TouchableOpacity
-                  key={job}
-                  style={styles.jobItem}
-                  onPress={() => {
-                    setValue('jobTitle', job);
-                    setShowJobPicker(false);
-                  }}
-                >
-                  <Text style={styles.jobText}>{job}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+          {departmentJobs.map((job) => (
+            <TouchableOpacity
+              key={job}
+              style={styles.jobItem}
+              onPress={() => {
+                setValue('jobTitle', job);
+                setShowJobPicker(false);
+                setSelectedDepartment(null);
+              }}
+            >
+              <Text style={styles.jobText}>{job}</Text>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
@@ -259,6 +313,34 @@ export default function EditContactScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Navigation et Favori */}
+        <View style={styles.topActionsSection}>
+          <TouchableOpacity 
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <Ionicons name="chevron-back" size={24} color={MyCrewColors.textPrimary} />
+          </TouchableOpacity>
+          
+          <Controller
+            control={control}
+            name="isFavorite"
+            render={({ field: { onChange, value } }) => (
+              <TouchableOpacity
+                onPress={() => onChange(!value)}
+                style={styles.favoriteButton}
+              >
+                <Ionicons
+                  name={value ? 'star' : 'star-outline'}
+                  size={24}
+                  color={value ? '#FFD700' : MyCrewColors.iconMuted}
+                />
+                <Text style={styles.favoriteText}>Favori</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+        
         {/* Informations de base */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informations personnelles</Text>
@@ -307,7 +389,7 @@ export default function EditContactScreen() {
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, styles.jobInputGroup]}>
             <Text style={styles.label}>
               Métier *
               {errors.jobTitle && <Text style={styles.errorText}> - {errors.jobTitle.message}</Text>}
@@ -325,13 +407,13 @@ export default function EditContactScreen() {
                   </Text>
                 )}
               />
-              <Ionicons name="chevron-down" size={20} color={MyCrewColors.iconMuted} />
+              <Ionicons name="chevron-forward" size={20} color={MyCrewColors.iconMuted} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
-              Téléphone *
+              Téléphone
               {errors.phone && <Text style={styles.errorText}> - {errors.phone.message}</Text>}
             </Text>
             <Controller
@@ -353,7 +435,7 @@ export default function EditContactScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
-              Email *
+              Email
               {errors.email && <Text style={styles.errorText}> - {errors.email.message}</Text>}
             </Text>
             <Controller
@@ -397,13 +479,7 @@ export default function EditContactScreen() {
 
         {/* Lieux de travail */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Lieux de travail</Text>
-            <TouchableOpacity style={styles.addButton} onPress={addLocation}>
-              <Ionicons name="add" size={20} color={MyCrewColors.accent} />
-              <Text style={styles.addButtonText}>Ajouter</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.sectionTitle}>Lieux de travail</Text>
           
           {locations.map((location, index) => (
             <View key={index} style={styles.locationCard}>
@@ -435,24 +511,33 @@ export default function EditContactScreen() {
                 <View style={styles.inputRow}>
                   <View style={styles.inputHalf}>
                     <Text style={styles.inputLabel}>Pays</Text>
-                    <TextInput
-                      style={styles.smallInput}
-                      value={location.country}
-                      onChangeText={(text) => updateLocation(index, 'country', text)}
-                      placeholder="France"
-                      placeholderTextColor={MyCrewColors.placeholderText}
-                    />
+                    <TouchableOpacity
+                      style={styles.smallPicker}
+                      onPress={() => setShowCountryPicker({show: true, locationIndex: index})}
+                    >
+                      <Text style={[styles.smallPickerText, !location.country && styles.placeholder]}>
+                        {location.country || 'Choisir un pays'}
+                      </Text>
+                      <Ionicons name="chevron-down" size={16} color={MyCrewColors.iconMuted} />
+                    </TouchableOpacity>
                   </View>
-                  <View style={styles.inputHalf}>
-                    <Text style={styles.inputLabel}>Région</Text>
-                    <TextInput
-                      style={styles.smallInput}
-                      value={location.region}
-                      onChangeText={(text) => updateLocation(index, 'region', text)}
-                      placeholder="Île-de-France"
-                      placeholderTextColor={MyCrewColors.placeholderText}
-                    />
-                  </View>
+                  {location.country === 'France' && (
+                    <View style={styles.inputHalf}>
+                      <Text style={styles.inputLabel}>Région</Text>
+                      <TouchableOpacity
+                        style={styles.smallPicker}
+                        onPress={() => setShowRegionPicker({show: true, locationIndex: index})}
+                      >
+                        <Text style={[
+                          styles.smallPickerText, 
+                          !location.region && styles.placeholder
+                        ]}>
+                          {location.region || 'Choisir une région'}
+                        </Text>
+                        <Ionicons name="chevron-down" size={16} color={MyCrewColors.iconMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
                 
                 <View style={styles.checkboxGroup}>
@@ -461,7 +546,7 @@ export default function EditContactScreen() {
                     onPress={() => updateLocation(index, 'isLocalResident', !location.isLocalResident)}
                   >
                     <Ionicons
-                      name={location.isLocalResident ? 'checkbox' : 'checkbox-outline'}
+                      name={location.isLocalResident ? 'checkbox' : 'square-outline'}
                       size={20}
                       color={location.isLocalResident ? MyCrewColors.accent : MyCrewColors.iconMuted}
                     />
@@ -473,7 +558,7 @@ export default function EditContactScreen() {
                     onPress={() => updateLocation(index, 'hasVehicle', !location.hasVehicle)}
                   >
                     <Ionicons
-                      name={location.hasVehicle ? 'checkbox' : 'checkbox-outline'}
+                      name={location.hasVehicle ? 'checkbox' : 'square-outline'}
                       size={20}
                       color={location.hasVehicle ? MyCrewColors.accent : MyCrewColors.iconMuted}
                     />
@@ -485,16 +570,28 @@ export default function EditContactScreen() {
                     onPress={() => updateLocation(index, 'isHoused', !location.isHoused)}
                   >
                     <Ionicons
-                      name={location.isHoused ? 'checkbox' : 'checkbox-outline'}
+                      name={location.isHoused ? 'checkbox' : 'square-outline'}
                       size={20}
                       color={location.isHoused ? MyCrewColors.accent : MyCrewColors.iconMuted}
                     />
                     <Text style={styles.checkboxLabel}>Logé sur place</Text>
                   </TouchableOpacity>
                 </View>
+                
+                {/* Message d'erreur si aucun statut n'est sélectionné */}
+                {!hasLocationStatus(location) && (
+                  <Text style={styles.locationStatusError}>
+                    Au moins une option doit être sélectionnée (résidence fiscale, véhicule ou logé)
+                  </Text>
+                )}
               </View>
             </View>
           ))}
+          
+          <TouchableOpacity style={styles.addLocationButton} onPress={addLocation}>
+            <Ionicons name="add" size={20} color={MyCrewColors.accent} />
+            <Text style={styles.addButtonText}>Ajouter</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Boutons d'action */}
@@ -517,6 +614,69 @@ export default function EditContactScreen() {
       </ScrollView>
       
       <JobPicker />
+      
+      {/* Country Picker Modal */}
+      {showCountryPicker.show && (
+        <View style={styles.pickerContainer}>
+          <View style={styles.pickerHeader}>
+            <Text style={styles.pickerTitle}>Choisir un pays</Text>
+            <TouchableOpacity onPress={() => setShowCountryPicker({show: false, locationIndex: -1})}>
+              <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.pickerList}>
+            {Object.keys(COUNTRIES_WITH_REGIONS).map((country) => (
+              <TouchableOpacity
+                key={country}
+                style={styles.pickerItem}
+                onPress={() => {
+                  const index = showCountryPicker.locationIndex;
+                  // Mettre à jour le pays et vider la région si ce n'est pas la France
+                  const updatedLocations = locations.map((loc, i) =>
+                    i === index ? { 
+                      ...loc, 
+                      country: country,
+                      region: country === 'France' ? loc.region : '' // Vider la région si ce n'est pas la France
+                    } : loc
+                  );
+                  setLocations(updatedLocations);
+                  setValue('locations', updatedLocations);
+                  setShowCountryPicker({show: false, locationIndex: -1});
+                }}
+              >
+                <Text style={styles.pickerItemText}>{country}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Region Picker Modal */}
+      {showRegionPicker.show && showRegionPicker.locationIndex >= 0 && (
+        <View style={styles.pickerContainer}>
+          <View style={styles.pickerHeader}>
+            <Text style={styles.pickerTitle}>Choisir une région</Text>
+            <TouchableOpacity onPress={() => setShowRegionPicker({show: false, locationIndex: -1})}>
+              <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.pickerList}>
+            {locations[showRegionPicker.locationIndex]?.country && 
+             COUNTRIES_WITH_REGIONS[locations[showRegionPicker.locationIndex].country]?.map((region) => (
+              <TouchableOpacity
+                key={region}
+                style={styles.pickerItem}
+                onPress={() => {
+                  updateLocation(showRegionPicker.locationIndex, 'region', region);
+                  setShowRegionPicker({show: false, locationIndex: -1});
+                }}
+              >
+                <Text style={styles.pickerItemText}>{region}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -525,6 +685,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: MyCrewColors.background,
+  },
+  topActionsSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  favoriteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    padding: Spacing.sm,
+  },
+  favoriteText: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textPrimary,
+    fontWeight: '500',
   },
   header: {
     flexDirection: 'row',
@@ -577,6 +755,9 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: Spacing.lg,
   },
+  jobInputGroup: {
+    marginTop: Spacing.md,
+  },
   label: {
     fontSize: Typography.body,
     fontWeight: '500',
@@ -620,6 +801,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
+  },
+  addLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
   addButtonText: {
     color: MyCrewColors.accent,
@@ -763,6 +952,100 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   jobText: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textPrimary,
+  },
+  
+  // New styles for department selection
+  departmentsList: {
+    flex: 1,
+    padding: Spacing.lg,
+  },
+  departmentCard: {
+    backgroundColor: MyCrewColors.cardBackground,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    ...Shadows.small,
+  },
+  departmentIcon: {
+    width: 36,
+    height: 36,
+    backgroundColor: `${MyCrewColors.accent}15`,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  departmentName: {
+    flex: 1,
+    fontSize: Typography.body,
+    fontWeight: '500',
+    color: MyCrewColors.textPrimary,
+  },
+  
+  // Location picker styles
+  smallPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: MyCrewColors.border,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.sm,
+    backgroundColor: MyCrewColors.cardBackground,
+  },
+  smallPickerText: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textPrimary,
+    flex: 1,
+  },
+  disabled: {
+    color: MyCrewColors.iconMuted,
+  },
+  locationStatusError: {
+    fontSize: Typography.small,
+    color: MyCrewColors.destructive,
+    marginTop: Spacing.xs,
+    fontStyle: 'italic',
+  },
+  
+  // General picker container
+  pickerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: MyCrewColors.background,
+    zIndex: 1000,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: MyCrewColors.border,
+  },
+  pickerTitle: {
+    fontSize: Typography.headline,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
+  },
+  pickerList: {
+    flex: 1,
+    padding: Spacing.lg,
+  },
+  pickerItem: {
+    backgroundColor: MyCrewColors.cardBackground,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+  },
+  pickerItemText: {
     fontSize: Typography.body,
     color: MyCrewColors.textPrimary,
   },

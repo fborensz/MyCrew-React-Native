@@ -116,7 +116,10 @@ export default function App() {
         <Stack.Screen 
           name="EditContact" 
           component={EditContactScreen}
-          options={{ title: 'Modifier contact' }}
+          options={{ 
+            title: 'Modifier contact',
+            headerLeft: () => <HeaderLogo />
+          }}
         />
         <Stack.Screen 
           name="QRScanner" 
