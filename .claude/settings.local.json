@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npm install)",
       "Bash(npm start)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(copy JobTitles.ts JobTitles.backup.ts)",
+      "Bash(cp:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

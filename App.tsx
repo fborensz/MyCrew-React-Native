@@ -9,6 +9,7 @@ import { Image, View } from 'react-native';
 
 import { DatabaseService } from './services/DatabaseService';
 import { SampleDataService } from './services/SampleDataService';
+import { MigrationService } from './services/MigrationService';
 import { MyCrewColors } from './constants/Colors';
 import { RootStackParamList } from './types';
 
@@ -55,6 +56,9 @@ export default function App() {
         
         // Seed with sample data if needed
         await SampleDataService.seedDatabase();
+        
+        // Run migrations if needed (job titles to inclusive writing)
+        await MigrationService.checkAndRunMigrations();
         
         // Simulate loading time for splash screen
         await new Promise(resolve => setTimeout(resolve, 1000));

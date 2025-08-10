@@ -1,5 +1,5 @@
-// MyCrew React Native - Job Titles System
-// Based on JobTitles.swift - Complete French film industry job database
+// MyCrew React Native - Job Titles System (Updated)
+// Version inclusive avec métiers additionnels pour l'industrie du cinéma français
 
 import { Department } from '../types';
 
@@ -9,95 +9,152 @@ export class JobTitles {
   
   static readonly departments: Record<string, string[]> = {
     "Mise en scène": [
-      "Réalisateur",
-      "1er Assistant Réalisateur",
-      "2e Assistant Réalisateur",
-      "3e Assistant Réalisateur",
-      "Scripte"
+      "Réalisateur.ice",
+      "1er.ère Assistant.e Réalisateur.ice",
+      "2e Assistant.e Réalisateur.ice", 
+      "3e Assistant.e Réalisateur.ice",
+      "Scripte",
+      "Directeur.ice de casting",
+      "Assistant.e casting",
+      "Coach acteur.ice",
+      "Répétiteur.ice"
     ],
     "Image": [
-      "Directeur de la photographie",
-      "Chef opérateur",
-      "Cadreur",
-      "Opérateur Steadicam",
-      "Opérateur Louma",
-      "1er Assistant Caméra (Focus Puller)",
-      "2e Assistant Caméra (Clap/Loader)",
-      "3e Assistant Caméra",
+      "Directeur.ice de la photographie",
+      "Chef.fe opérateur.ice",
+      "Cadreur.se",
+      "Opérateur.ice Steadicam",
+      "Opérateur.ice Louma",
+      "Opérateur.ice drone",
+      "1er.ère Assistant.e Caméra (Focus Puller)",
+      "2e Assistant.e Caméra (Clap/Loader)",
+      "3e Assistant.e Caméra",
       "Vidéo Assist",
       "DIT (Digital Imaging Technician)",
-      "Data Manager"
+      "Data Manager",
+      "Étalonneur.se plateau"
     ],
     "Son": [
-      "Ingénieur du Son",
-      "Perchman",
-      "Assistant Son",
+      "Ingénieur.e du Son",
+      "Chef.fe opérateur.ice Son",
+      "Perchman.woman",
+      "Assistant.e Son",
       "Sound Designer",
-      "Monteur Son",
-      "Mixeur"
+      "Monteur.se Son",
+      "Mixeur.se",
+      "Bruiteur.se",
+      "Musicien.ne plateau"
     ],
     "Lumière": [
-      "Chef Électro (Gaffer)",
-      "Électro",
-      "Chef Machiniste (Key Grip)",
+      "Chef.fe Électro (Gaffer)",
+      "Électricien.ne",
+      "Chef.fe Machiniste (Key Grip)",
       "Machiniste",
-      "Rigger"
+      "Rigger",
+      "Groupman",
+      "Poursuiteur.se"
     ],
     "Régie": [
-      "Régisseur Général",
-      "Régisseur Adjoint",
-      "Régisseur",
-      "Assistant Régie",
-      "Régisseur Transport",
-      "Régisseur Plateau"
+      "Régisseur.se Général.e",
+      "Régisseur.se Adjoint.e",
+      "Régisseur.se",
+      "Assistant.e Régie",
+      "Régisseur.se Transport",
+      "Régisseur.se Plateau",
+      "Régisseur.se Extérieurs",
+      "Repéreur.se",
+      "Location Manager"
     ],
     "Décors": [
-      "Chef Décorateur",
-      "Assistant Décorateur",
-      "Ensemblière",
+      "Chef.fe Décorateur.ice",
+      "1er.ère Assistant.e Décorateur.ice",
+      "2e Assistant.e Décorateur.ice",
+      "Ensemblier.ère",
       "Accessoiriste",
       "Peintre Décor",
-      "Constructeur Décor",
-      "Menuisier Décor",
-      "Habilleur de Décor"
+      "Sculpteur.ice Décor",
+      "Constructeur.ice Décor",
+      "Menuisier.ère Décor",
+      "Serrurier.ère Décor",
+      "Staffeur.se",
+      "Tapissier.ère Décor"
     ],
     "Costumes": [
-      "Chef Costumier",
-      "Assistant Costumier",
-      "Habilleur",
-      "Styliste",
-      "Costumier"
+      "Chef.fe Costumier.ère",
+      "Créateur.ice de costumes",
+      "Assistant.e Costumier.ère",
+      "Habilleur.se",
+      "Couturier.ère",
+      "Modiste",
+      "Bottier.ère",
+      "Lingère"
     ],
     "Maquillage et Coiffure": [
-      "Chef Maquilleur",
-      "Maquilleur",
-      "Assistant Maquilleur",
-      "Chef Coiffeur",
-      "Coiffeur",
-      "Perruquier"
+      "Chef.fe Maquilleur.se",
+      "Maquilleur.se",
+      "Assistant.e Maquilleur.se",
+      "Maquilleur.se SFX",
+      "Prothésiste",
+      "Chef.fe Coiffeur.se",
+      "Coiffeur.se",
+      "Perruquier.ère",
+      "Barbier.ère plateau"
     ],
     "Production": [
-      "Producteur",
-      "Directeur de Production",
-      "Assistant de Production",
-      "Administrateur de Production",
-      "Secrétaire de Production"
+      "Producteur.ice",
+      "Producteur.ice Exécutif.ve",
+      "Producteur.ice Délégué.e",
+      "Directeur.ice de Production",
+      "Assistant.e de Production",
+      "Administrateur.ice de Production",
+      "Secrétaire de Production",
+      "Comptable de Production",
+      "Chargé.e de production"
     ],
     "Post-Production": [
-      "Monteur Image",
-      "Assistant Monteur",
-      "Étalonneur",
-      "Superviseur VFX",
-      "Graphiste VFX",
-      "Motion Designer"
+      "Monteur.se Image",
+      "Chef.fe Monteur.se",
+      "Assistant.e Monteur.se",
+      "Étalonneur.se",
+      "Superviseur.e VFX",
+      "Coordinateur.ice VFX",
+      "Artiste VFX",
+      "Compositeur.ice VFX",
+      "Motion Designer",
+      "Graphiste 2D/3D",
+      "Truquiste",
+      "Conformateur.ice"
+    ],
+    "Effets Spéciaux": [
+      "Superviseur.e SFX",
+      "Technicien.ne SFX",
+      "Artificier.ère",
+      "Mécanicien.ne SFX",
+      "Coordinateur.ice SFX"
+    ],
+    "Cascades et Sécurité": [
+      "Cascadeur.se",
+      "Coordinateur.ice Cascades",
+      "Doublure",
+      "Conseiller.ère Sécurité",
+      "Armurier.ère",
+      "Conducteur.ice de jeu"
     ],
     "Autres Spécialités": [
-      "Cascadeur",
-      "Coordinateur Stunts",
-      "Dresseur Animalier",
+      "Dresseur.se Animalier.ère",
       "Photographe de Plateau",
-      "Making-of",
-      "Chef Cuisinier Plateau"
+      "Vidéaste Making-of",
+      "Chef.fe Cuisinier.ère Plateau",
+      "Assistant.e Cuisinier.ère",
+      "Médecin de plateau",
+      "Infirmier.ère de plateau",
+      "Garde d'enfants plateau",
+      "Coach sportif.ve",
+      "Chorégraphe",
+      "Maître.sse d'armes",
+      "Consultant.e technique",
+      "Interprète",
+      "Sous-titreur.se"
     ]
   };
 
@@ -113,6 +170,8 @@ export class JobTitles {
     "Maquillage et Coiffure": "color-palette",
     "Production": "briefcase",
     "Post-Production": "laptop",
+    "Effets Spéciaux": "sparkles",
+    "Cascades et Sécurité": "shield",
     "Autres Spécialités": "ellipsis-horizontal-circle"
   };
 
