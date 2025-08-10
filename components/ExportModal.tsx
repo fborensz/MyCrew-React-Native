@@ -60,6 +60,26 @@ export default function ExportModal({ visible, onClose, data, type, filters, sea
       setQrValue(qrData);
       setShowQR(true);
     } else if (type === 'contacts' && Array.isArray(data)) {
+      // Check if any filters are applied
+      const hasFilters = filters && (
+        filters.job ||
+        filters.country ||
+        filters.regions.length > 0 ||
+        filters.isHoused ||
+        filters.isLocalResident ||
+        filters.hasVehicle
+      );
+
+      const hasSearchText = searchText && searchText.trim().length > 0;
+
+      if (!hasFilters && !hasSearchText) {
+        Alert.alert(
+          'Filtres requis', 
+          'Appliquez des filtres avant d\'exporter une liste de contacts'
+        );
+        return;
+      }
+
       // Multi-contact QR - navigate to selection screen with filters
       onClose(); // Close current modal first
       navigation.navigate('MultiQRExport', {
