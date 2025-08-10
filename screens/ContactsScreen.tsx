@@ -1074,7 +1074,7 @@ export default function ContactsScreen() {
           setShowQRModal(false);
           setSelectedContact(null);
         }}
-        profile={profile}
+        profile={selectedContact ? null : profile}
         contact={selectedContact}
       />
 

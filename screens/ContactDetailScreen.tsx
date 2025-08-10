@@ -4,13 +4,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
 
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
+import QRCodePopup from '../components/QRCodePopup';
 import { DatabaseService } from '../services/DatabaseService';
-import { MyCrewColors, Spacing } from '../constants/Colors';
+import { MyCrewColors, Spacing, BorderRadius, Shadows } from '../constants/Colors';
 import { Contact, RootStackParamList, getContactFullName } from '../types';
 import ExportModal from '../components/ExportModal';
 
@@ -24,39 +26,23 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
   const [contact, setContact] = useState<Contact | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showQRPopup, setShowQRPopup] = useState(false);
 
   useEffect(() => {
     loadContact();
   }, [contactId]);
+  
+  // Recharger le contact quand l'écran reprend le focus (après édition)
+  useFocusEffect(
+    React.useCallback(() => {
+      loadContact();
+    }, [contactId])
+  );
 
   // Configurer les boutons header - TOUJOURS appelé (même en loading/error)
   React.useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <View style={styles.headerButtons}>
-          <TouchableOpacity 
-            onPress={handleExport} 
-            style={[styles.headerButton, !contact && styles.headerButtonDisabled]}
-            disabled={!contact}
-          >
-            <Ionicons name="share-outline" size={24} color={!contact ? MyCrewColors.iconMuted : MyCrewColors.textPrimary} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={handleEdit} 
-            style={[styles.headerButton, !contact && styles.headerButtonDisabled]}
-            disabled={!contact}
-          >
-            <Ionicons name="create-outline" size={24} color={!contact ? MyCrewColors.iconMuted : MyCrewColors.textPrimary} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={handleQRCode} 
-            style={[styles.headerButton, !contact && styles.headerButtonDisabled]}
-            disabled={!contact}
-          >
-            <Ionicons name="qr-code-outline" size={24} color={!contact ? MyCrewColors.iconMuted : MyCrewColors.textPrimary} />
-          </TouchableOpacity>
-        </View>
-      ),
+      headerRight: () => null,
     });
   }, [navigation, contact]);
 
@@ -187,22 +173,38 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <View style={styles.header}>
-          <View style={styles.nameSection}>
-            <ThemedText variant="title" weight="bold">
-              {getContactFullName(contact)}
-            </ThemedText>
-            <TouchableOpacity onPress={handleToggleFavorite} style={styles.favoriteButton}>
-              <Ionicons 
-                name={contact.isFavorite ? "star" : "star-outline"} 
-                size={24} 
-                color={contact.isFavorite ? MyCrewColors.favoriteStar : MyCrewColors.iconMuted} 
-                style={styles.favoriteIcon}
-              />
+          <View style={styles.profileRow}>
+            <TouchableOpacity onPress={() => setShowQRPopup(true)} style={styles.qrButton}>
+              <Ionicons name="qr-code-outline" size={42} color={MyCrewColors.accent} />
             </TouchableOpacity>
+            
+            <View style={styles.nameSection}>
+              <View style={styles.nameRow}>
+                <ThemedText variant="title" weight="bold">
+                  {getContactFullName(contact)}
+                </ThemedText>
+                <TouchableOpacity onPress={handleToggleFavorite} style={styles.favoriteStarButton}>
+                  <Ionicons 
+                    name={contact.isFavorite ? "star" : "star-outline"} 
+                    size={16} 
+                    color={contact.isFavorite ? MyCrewColors.favoriteStar : MyCrewColors.iconMuted} 
+                  />
+                </TouchableOpacity>
+              </View>
+              <ThemedText variant="headline" color="textSecondary" style={styles.jobTitle}>
+                {contact.jobTitle}
+              </ThemedText>
+            </View>
+            
+            <View style={styles.actionButtons}>
+              <TouchableOpacity onPress={handleExport} style={styles.actionButton}>
+                <Ionicons name="share-outline" size={20} color={MyCrewColors.accent} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleEdit} style={styles.actionButton}>
+                <Ionicons name="create-outline" size={20} color={MyCrewColors.accent} />
+              </TouchableOpacity>
+            </View>
           </View>
-          <ThemedText variant="headline" color="textSecondary">
-            {contact.jobTitle}
-          </ThemedText>
         </View>
 
         {/* Contact Info */}
@@ -236,65 +238,89 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
           )}
         </View>
 
-        {/* Locations */}
-        {(primaryLocation || secondaryLocations.length > 0) && (
+        {/* Localisation(s) */}
+        {primaryLocation && (
           <View style={styles.section}>
             <ThemedText variant="headline" weight="semibold" style={styles.sectionTitle}>
-              Lieux de travail
+              {secondaryLocations.length === 0 ? 'Lieu de travail' : 'Lieu de travail principal'}
             </ThemedText>
-            
-            {primaryLocation && (
-              <View style={styles.locationRow}>
-                <Ionicons name="location" size={20} color={MyCrewColors.accent} />
-                <View style={styles.locationInfo}>
-                  <ThemedText variant="body" weight="semibold">
-                    {primaryLocation.region || primaryLocation.country}
-                  </ThemedText>
-                  <View style={styles.locationAttributes}>
-                    {primaryLocation.isLocalResident && (
-                      <View style={styles.attribute}>
-                        <ThemedText variant="caption" color="accent">Résident</ThemedText>
-                      </View>
-                    )}
-                    {primaryLocation.hasVehicle && (
-                      <View style={styles.attribute}>
-                        <ThemedText variant="caption" color="accent">Véhicule</ThemedText>
-                      </View>
-                    )}
-                    {primaryLocation.isHoused && (
-                      <View style={styles.attribute}>
-                        <ThemedText variant="caption" color="accent">Logé</ThemedText>
-                      </View>
-                    )}
-                  </View>
-                </View>
+            <View style={styles.locationCard}>
+              <View style={styles.locationHeader}>
+                <Ionicons name="location" size={18} color={MyCrewColors.accent} />
+                <ThemedText variant="body" weight="semibold" style={styles.locationName}>
+                  {primaryLocation.region ? 
+                    `${primaryLocation.region}, ${primaryLocation.country}` : 
+                    primaryLocation.country
+                  }
+                </ThemedText>
               </View>
-            )}
-
-            {secondaryLocations.map((location, index) => (
-              <View key={location.id} style={styles.locationRow}>
-                <Ionicons name="location-outline" size={20} color={MyCrewColors.iconMuted} />
-                <View style={styles.locationInfo}>
-                  <ThemedText variant="body">
-                    {location.region || location.country}
-                  </ThemedText>
-                  <View style={styles.locationAttributes}>
-                    {location.isLocalResident && (
-                      <View style={styles.attribute}>
-                        <ThemedText variant="caption" color="textSecondary">Résident</ThemedText>
-                      </View>
-                    )}
-                    {location.hasVehicle && (
-                      <View style={styles.attribute}>
-                        <ThemedText variant="caption" color="textSecondary">Véhicule</ThemedText>
-                      </View>
-                    )}
-                    {location.isHoused && (
-                      <View style={styles.attribute}>
-                        <ThemedText variant="caption" color="textSecondary">Logé</ThemedText>
-                      </View>
-                    )}
+              
+              <View style={styles.locationDetails}>
+                {primaryLocation.isLocalResident && (
+                  <View style={styles.locationBadge}>
+                    <Ionicons name="home" size={14} color={MyCrewColors.accent} />
+                    <ThemedText variant="caption" color="accent" weight="medium">Résident fiscal</ThemedText>
                   </View>
+                )}
+                {primaryLocation.hasVehicle && (
+                  <View style={styles.locationBadge}>
+                    <Ionicons name="car" size={14} color={MyCrewColors.accent} />
+                    <ThemedText variant="caption" color="accent" weight="medium">Véhicule</ThemedText>
+                  </View>
+                )}
+                {primaryLocation.isHoused && (
+                  <View style={styles.locationBadge}>
+                    <Ionicons name="bed" size={14} color={MyCrewColors.accent} />
+                    <ThemedText variant="caption" color="accent" weight="medium">Logé sur place</ThemedText>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Autres localisations */}
+        {secondaryLocations.length > 0 && (
+          <View style={styles.section}>
+            <ThemedText variant="headline" weight="semibold" style={styles.sectionTitle}>
+              {secondaryLocations.length === 1 ? 'Lieu de travail 2' : 'Autres lieux de travail'}
+            </ThemedText>
+            {secondaryLocations.map((location, index) => (
+              <View key={location.id} style={styles.locationCard}>
+                {secondaryLocations.length > 1 && (
+                  <ThemedText variant="caption" color="textSecondary" style={styles.locationNumber}>
+                    Lieu {index + 2}
+                  </ThemedText>
+                )}
+                <View style={styles.locationHeader}>
+                  <Ionicons name="location-outline" size={18} color={MyCrewColors.textSecondary} />
+                  <ThemedText variant="body" style={styles.locationName}>
+                    {location.region ? 
+                      `${location.region}, ${location.country}` : 
+                      location.country
+                    }
+                  </ThemedText>
+                </View>
+                
+                <View style={styles.locationDetails}>
+                  {location.isLocalResident && (
+                    <View style={styles.locationBadge}>
+                      <Ionicons name="home" size={14} color={MyCrewColors.textSecondary} />
+                      <ThemedText variant="caption" color="textSecondary" weight="medium">Résident fiscal</ThemedText>
+                    </View>
+                  )}
+                  {location.hasVehicle && (
+                    <View style={styles.locationBadge}>
+                      <Ionicons name="car" size={14} color={MyCrewColors.textSecondary} />
+                      <ThemedText variant="caption" color="textSecondary" weight="medium">Véhicule</ThemedText>
+                    </View>
+                  )}
+                  {location.isHoused && (
+                    <View style={styles.locationBadge}>
+                      <Ionicons name="bed" size={14} color={MyCrewColors.textSecondary} />
+                      <ThemedText variant="caption" color="textSecondary" weight="medium">Logé sur place</ThemedText>
+                    </View>
+                  )}
                 </View>
               </View>
             ))}
@@ -329,6 +355,23 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
         data={contact}
         type="contact"
       />
+      
+      {/* QR Code Popup */}
+      {contact && (
+        <QRCodePopup
+          visible={showQRPopup}
+          onClose={() => setShowQRPopup(false)}
+          data={JSON.stringify({
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            jobTitle: contact.jobTitle,
+            phone: contact.phone,
+            email: contact.email,
+            locations: contact.locations
+          })}
+          title={getContactFullName(contact)}
+        />
+      )}
     </ThemedView>
   );
 }
@@ -342,72 +385,105 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerButtons: {
-    flexDirection: 'row',
-  },
-  headerButton: {
-    marginLeft: Spacing.md,
-  },
-  headerButtonDisabled: {
-    opacity: 0.5,
-  },
   header: {
-    padding: Spacing.lg,
+    padding: Spacing.md,
     backgroundColor: MyCrewColors.cardBackground,
-    borderBottomWidth: 1,
-    borderBottomColor: MyCrewColors.separator,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  nameSection: {
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.xs,
   },
-  favoriteButton: {
-    marginLeft: Spacing.sm,
+  qrButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: MyCrewColors.accentLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.sm,
+  },
+  nameSection: {
+    flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  favoriteStarButton: {
+    marginLeft: 4,
+    padding: 2,
+  },
+  jobTitle: {
+    marginTop: 2,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  actionButton: {
     padding: Spacing.xs,
   },
-  favoriteIcon: {
-    // No margin needed since it's inside the button
-  },
   section: {
-    padding: Spacing.lg,
+    padding: Spacing.sm,
     backgroundColor: MyCrewColors.cardBackground,
-    marginTop: Spacing.sm,
-    marginHorizontal: Spacing.md,
-    borderRadius: 12,
+    margin: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    ...Shadows.small,
   },
   sectionTitle: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
   infoText: {
-    marginLeft: Spacing.md,
+    marginLeft: Spacing.sm,
   },
-  locationRow: {
+  locationCard: {
+    backgroundColor: MyCrewColors.background,
+    borderRadius: 8,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: MyCrewColors.border,
+  },
+  locationHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+    gap: Spacing.xs,
   },
-  locationInfo: {
+  locationName: {
     flex: 1,
-    marginLeft: Spacing.md,
   },
-  locationAttributes: {
+  locationNumber: {
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  locationDetails: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: Spacing.xs,
+    gap: Spacing.xs,
   },
-  attribute: {
-    backgroundColor: MyCrewColors.lightGray,
-    paddingHorizontal: Spacing.sm,
+  locationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: MyCrewColors.accentLight,
+    paddingHorizontal: Spacing.xs,
     paddingVertical: 2,
     borderRadius: 4,
-    marginRight: Spacing.xs,
-    marginBottom: Spacing.xs,
+    gap: 4,
   },
   notes: {
     lineHeight: 20,
@@ -416,10 +492,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.lg,
-    margin: Spacing.lg,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginVertical: Spacing.lg,
+    alignSelf: 'center',
     backgroundColor: MyCrewColors.cardBackground,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: MyCrewColors.destructive,
   },

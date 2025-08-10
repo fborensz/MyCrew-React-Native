@@ -18,6 +18,7 @@ import { MyCrewColors } from '../constants/Colors';
 import { UserProfile, getUserProfileFullName } from '../types';
 import { DatabaseService } from '../services/DatabaseService';
 import ExportModal from '../components/ExportModal';
+import QRCodePopup from '../components/QRCodePopup';
 
 const Spacing = {
   xs: 4,
@@ -60,6 +61,7 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showQRPopup, setShowQRPopup] = useState(false);
 
   // Recharger le profil à chaque fois que l'écran devient actif
   useFocusEffect(
@@ -170,13 +172,9 @@ export default function ProfileScreen() {
     >
       {/* Header du profil */}
       <View style={styles.profileHeader}>
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {getUserProfileFullName(profile).split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-            </Text>
-          </View>
-        </View>
+        <TouchableOpacity onPress={() => setShowQRPopup(true)} style={styles.qrButton}>
+          <Ionicons name="qr-code-outline" size={42} color={MyCrewColors.background} />
+        </TouchableOpacity>
         
         <View style={styles.profileInfo}>
           <Text style={styles.profileName}>{getUserProfileFullName(profile)}</Text>
@@ -190,10 +188,10 @@ export default function ProfileScreen() {
 
         <View style={styles.headerButtons}>
           <TouchableOpacity style={styles.headerButton} onPress={handleExport}>
-            <Ionicons name="share-outline" size={20} color={MyCrewColors.accent} />
+            <Ionicons name="share-outline" size={20} color={MyCrewColors.background} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={navigateToEditor}>
-            <Ionicons name="create-outline" size={20} color={MyCrewColors.accent} />
+            <Ionicons name="create-outline" size={20} color={MyCrewColors.background} />
           </TouchableOpacity>
         </View>
       </View>
@@ -213,10 +211,12 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Localisation principale */}
+      {/* Localisation(s) */}
       {primaryLocation && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Localisation principale</Text>
+          <Text style={styles.sectionTitle}>
+            {secondaryLocations.length === 0 ? 'Lieu de travail' : 'Lieu de travail principal'}
+          </Text>
           <View style={styles.locationCard}>
             <View style={styles.locationHeader}>
               <Ionicons name="location" size={18} color={MyCrewColors.accent} />
@@ -255,9 +255,14 @@ export default function ProfileScreen() {
       {/* Autres localisations */}
       {secondaryLocations.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Autres lieux de travail</Text>
+          <Text style={styles.sectionTitle}>
+            {secondaryLocations.length === 1 ? 'Lieu de travail 2' : 'Autres lieux de travail'}
+          </Text>
           {secondaryLocations.map((location, index) => (
             <View key={index} style={styles.locationCard}>
+              {secondaryLocations.length > 1 && (
+                <Text style={styles.locationNumber}>Lieu {index + 2}</Text>
+              )}
               <View style={styles.locationHeader}>
                 <Ionicons name="location-outline" size={18} color={MyCrewColors.textSecondary} />
                 <Text style={styles.locationName}>
@@ -293,18 +298,6 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* Actions */}
-      <View style={styles.actionsSection}>
-        <TouchableOpacity style={styles.actionButton} onPress={navigateToQRCode}>
-          <Ionicons name="qr-code-outline" size={20} color={MyCrewColors.background} />
-          <Text style={styles.actionButtonText}>Mon QR Code</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.actionButtonSecondary} onPress={navigateToEditor}>
-          <Ionicons name="create-outline" size={20} color={MyCrewColors.accent} />
-          <Text style={styles.actionButtonTextSecondary}>Modifier le profil</Text>
-        </TouchableOpacity>
-      </View>
       
       {/* Export Modal */}
       <ExportModal 
@@ -313,6 +306,23 @@ export default function ProfileScreen() {
         data={profile}
         type="profile"
       />
+      
+      {/* QR Code Popup */}
+      {profile && (
+        <QRCodePopup
+          visible={showQRPopup}
+          onClose={() => setShowQRPopup(false)}
+          data={JSON.stringify({
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            jobTitle: profile.jobTitle,
+            phoneNumber: profile.phoneNumber,
+            email: profile.email,
+            locations: profile.locations
+          })}
+          title={getUserProfileFullName(profile)}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -372,28 +382,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   profileHeader: {
-    backgroundColor: MyCrewColors.cardBackground,
+    backgroundColor: MyCrewColors.accent,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: MyCrewColors.border,
+    padding: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  avatarContainer: {
-    marginRight: Spacing.lg,
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: MyCrewColors.accent,
+  qrButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: Typography.title,
-    fontWeight: '700',
-    color: MyCrewColors.background,
+    marginRight: Spacing.md,
   },
   profileInfo: {
     flex: 1,
@@ -401,17 +411,19 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: Typography.title,
     fontWeight: '700',
-    color: MyCrewColors.textPrimary,
+    color: MyCrewColors.background,
     marginBottom: Spacing.xs,
   },
   profileJob: {
     fontSize: Typography.subheadline,
-    color: MyCrewColors.accent,
+    color: MyCrewColors.background,
     marginBottom: Spacing.xs,
+    opacity: 0.9,
   },
   profileLocation: {
     fontSize: Typography.body,
-    color: MyCrewColors.textSecondary,
+    color: MyCrewColors.background,
+    opacity: 0.8,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -422,22 +434,22 @@ const styles = StyleSheet.create({
   },
   section: {
     backgroundColor: MyCrewColors.cardBackground,
-    margin: Spacing.lg,
+    margin: Spacing.md,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
+    padding: Spacing.sm,
     ...Shadows.small,
   },
   sectionTitle: {
     fontSize: Typography.headline,
     fontWeight: '600',
     color: MyCrewColors.textPrimary,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.md,
-    gap: Spacing.md,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
   },
   contactText: {
     fontSize: Typography.body,
@@ -464,6 +476,12 @@ const styles = StyleSheet.create({
     color: MyCrewColors.textPrimary,
     flex: 1,
   },
+  locationNumber: {
+    fontSize: Typography.small,
+    color: MyCrewColors.textSecondary,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
   locationDetails: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -482,40 +500,5 @@ const styles = StyleSheet.create({
     fontSize: Typography.small,
     color: MyCrewColors.accent,
     fontWeight: '500',
-  },
-  actionsSection: {
-    margin: Spacing.lg,
-    gap: Spacing.md,
-  },
-  actionButton: {
-    backgroundColor: MyCrewColors.accent,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    gap: Spacing.sm,
-    ...Shadows.small,
-  },
-  actionButtonText: {
-    color: MyCrewColors.background,
-    fontSize: Typography.subheadline,
-    fontWeight: '600',
-  },
-  actionButtonSecondary: {
-    backgroundColor: MyCrewColors.cardBackground,
-    borderWidth: 1,
-    borderColor: MyCrewColors.accent,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    gap: Spacing.sm,
-  },
-  actionButtonTextSecondary: {
-    color: MyCrewColors.accent,
-    fontSize: Typography.subheadline,
-    fontWeight: '600',
   },
 });
