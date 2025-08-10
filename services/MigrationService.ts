@@ -8,7 +8,7 @@ import { Contact, UserProfile } from '../types';
 
 export class MigrationService {
   private static readonly MIGRATION_VERSION_KEY = '@MyCrew:migration_version';
-  private static readonly CURRENT_MIGRATION_VERSION = '1.0.0';
+  private static readonly CURRENT_MIGRATION_VERSION = '2.0.0';
 
   /**
    * Vérifie si une migration est nécessaire et l'exécute
@@ -19,7 +19,7 @@ export class MigrationService {
       
       // Si c'est la première fois ou si la version a changé, exécuter les migrations
       if (!lastMigrationVersion || lastMigrationVersion !== this.CURRENT_MIGRATION_VERSION) {
-        console.log('🔄 Début de la migration des métiers vers l\'écriture inclusive...');
+        console.log('🔄 Début de la migration vers les métiers multiples et écriture inclusive...');
         
         await this.migrateAllData();
         
@@ -58,20 +58,36 @@ export class MigrationService {
       let migratedCount = 0;
 
       for (const contact of contacts) {
-        const oldJobTitle = contact.jobTitle;
-        const newJobTitle = JobMigration.migrateJobTitle(oldJobTitle);
-        
-        if (newJobTitle !== oldJobTitle) {
-          // Mettre à jour le contact avec le nouveau nom de métier
-          const updatedContact: Partial<Contact> = {
-            ...contact,
-            jobTitle: newJobTitle
-          };
+        let needsUpdate = false;
+        let updatedContact: Partial<Contact> = { ...contact };
+
+        // Gérer la migration de single jobTitle vers jobTitles array
+        if (contact.jobTitle && !contact.jobTitles) {
+          const oldJobTitle = contact.jobTitle;
+          const newJobTitle = JobMigration.migrateJobTitle(oldJobTitle);
           
+          updatedContact.jobTitles = [newJobTitle];
+          // Garder l'ancien jobTitle pour compatibilité temporaire
+          updatedContact.jobTitle = newJobTitle;
+          
+          needsUpdate = true;
+          console.log(`📝 Contact "${contact.firstName} ${contact.lastName}": "${oldJobTitle}" → [${newJobTitle}]`);
+        }
+        // Migrer les jobTitles existants s'ils ne sont pas à jour
+        else if (contact.jobTitles && contact.jobTitles.length > 0) {
+          const migratedJobTitles = JobMigration.migrateJobTitles(contact.jobTitles);
+          const hasChanges = migratedJobTitles.some((job, index) => job !== contact.jobTitles![index]);
+          
+          if (hasChanges) {
+            updatedContact.jobTitles = migratedJobTitles;
+            needsUpdate = true;
+            console.log(`📝 Contact "${contact.firstName} ${contact.lastName}": [${contact.jobTitles.join(', ')}] → [${migratedJobTitles.join(', ')}]`);
+          }
+        }
+
+        if (needsUpdate) {
           await db.updateContact(contact.id, updatedContact);
           migratedCount++;
-          
-          console.log(`📝 Contact "${contact.firstName} ${contact.lastName}": "${oldJobTitle}" → "${newJobTitle}"`);
         }
       }
 
@@ -90,19 +106,35 @@ export class MigrationService {
       const userProfile = await db.getUserProfile();
       
       if (userProfile) {
-        const oldJobTitle = userProfile.jobTitle;
-        const newJobTitle = JobMigration.migrateJobTitle(oldJobTitle);
-        
-        if (newJobTitle !== oldJobTitle) {
-          // Mettre à jour le profil avec le nouveau nom de métier
-          const updatedProfile: UserProfile = {
-            ...userProfile,
-            jobTitle: newJobTitle
-          };
+        let needsUpdate = false;
+        let updatedProfile: UserProfile = { ...userProfile };
+
+        // Gérer la migration de single jobTitle vers jobTitles array
+        if (userProfile.jobTitle && !userProfile.jobTitles) {
+          const oldJobTitle = userProfile.jobTitle;
+          const newJobTitle = JobMigration.migrateJobTitle(oldJobTitle);
           
+          updatedProfile.jobTitles = [newJobTitle];
+          // Garder l'ancien jobTitle pour compatibilité temporaire
+          updatedProfile.jobTitle = newJobTitle;
+          
+          needsUpdate = true;
+          console.log(`👤 Profil utilisateur: "${oldJobTitle}" → [${newJobTitle}]`);
+        }
+        // Migrer les jobTitles existants s'ils ne sont pas à jour
+        else if (userProfile.jobTitles && userProfile.jobTitles.length > 0) {
+          const migratedJobTitles = JobMigration.migrateJobTitles(userProfile.jobTitles);
+          const hasChanges = migratedJobTitles.some((job, index) => job !== userProfile.jobTitles![index]);
+          
+          if (hasChanges) {
+            updatedProfile.jobTitles = migratedJobTitles;
+            needsUpdate = true;
+            console.log(`👤 Profil utilisateur: [${userProfile.jobTitles.join(', ')}] → [${migratedJobTitles.join(', ')}]`);
+          }
+        }
+
+        if (needsUpdate) {
           await db.saveUserProfile(updatedProfile);
-          
-          console.log(`👤 Profil utilisateur: "${oldJobTitle}" → "${newJobTitle}"`);
         } else {
           console.log('✓ Profil utilisateur déjà à jour.');
         }

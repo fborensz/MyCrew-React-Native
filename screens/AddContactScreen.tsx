@@ -91,7 +91,7 @@ export default function AddContactScreen() {
     defaultValues: {
       firstName: '',
       lastName: '',
-      jobTitle: '',
+      jobTitles: [],
       phone: '',
       email: '',
       notes: '',
@@ -110,7 +110,7 @@ export default function AddContactScreen() {
       await db.createContact({
         firstName: data.firstName,
         lastName: data.lastName,
-        jobTitle: data.jobTitle,
+        jobTitles: data.jobTitles,
         phone: data.phone,
         email: data.email,
         notes: data.notes,
@@ -249,7 +249,12 @@ export default function AddContactScreen() {
               key={job}
               style={styles.jobItem}
               onPress={() => {
-                setValue('jobTitle', job);
+                const currentJobs = selectedJobs.length > 0 ? selectedJobs : [];
+                if (!currentJobs.includes(job) && currentJobs.length < 3) {
+                  const newJobs = [...currentJobs, job];
+                  setSelectedJobs(newJobs);
+                  setValue('jobTitles', newJobs);
+                }
                 setShowJobPicker(false);
                 setSelectedDepartment(null);
               }}
@@ -347,20 +352,42 @@ export default function AddContactScreen() {
 
           <View style={[styles.inputGroup, styles.jobInputGroup]}>
             <Text style={styles.label}>
-              Métier *
-              {errors.jobTitle && <Text style={styles.errorText}> - {errors.jobTitle.message}</Text>}
+              Métiers * (max 3)
+              {errors.jobTitles && <Text style={styles.errorText}> - {errors.jobTitles.message}</Text>}
             </Text>
             <TouchableOpacity
-              style={[styles.input, styles.pickerInput, errors.jobTitle && styles.inputError]}
+              style={[styles.input, styles.pickerInput, errors.jobTitles && styles.inputError]}
               onPress={() => setShowJobPicker(true)}
             >
               <Controller
                 control={control}
-                name="jobTitle"
+                name="jobTitles"
                 render={({ field: { value } }) => (
-                  <Text style={[styles.inputText, !value && styles.placeholder]}>
-                    {value || 'Choisir un métier'}
-                  </Text>
+                  <View style={styles.jobsContainer}>
+                    {selectedJobs.length === 0 ? (
+                      <Text style={[styles.inputText, styles.placeholder]}>
+                        Choisir jusqu'à 3 métiers
+                      </Text>
+                    ) : (
+                      <View style={styles.selectedJobsContainer}>
+                        {selectedJobs.map((job, index) => (
+                          <View key={index} style={styles.jobBadge}>
+                            <Text style={styles.jobBadgeText}>{job}</Text>
+                            <TouchableOpacity
+                              onPress={() => {
+                                const newJobs = selectedJobs.filter((_, i) => i !== index);
+                                setSelectedJobs(newJobs);
+                                setValue('jobTitles', newJobs);
+                              }}
+                              style={styles.removeJobButton}
+                            >
+                              <Ionicons name="close" size={14} color="white" />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
                 )}
               />
               <Ionicons name="chevron-forward" size={20} color={MyCrewColors.iconMuted} />
@@ -984,5 +1011,37 @@ const styles = StyleSheet.create({
   pickerItemText: {
     fontSize: Typography.body,
     color: MyCrewColors.textPrimary,
+  },
+  
+  // Job badges styles
+  jobsContainer: {
+    flex: 1,
+  },
+  selectedJobsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  jobBadge: {
+    backgroundColor: MyCrewColors.accent,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  jobBadgeText: {
+    color: 'white',
+    fontSize: Typography.small,
+    fontWeight: '500',
+  },
+  removeJobButton: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

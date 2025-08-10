@@ -19,6 +19,7 @@ import { UserProfile, getUserProfileFullName } from '../types';
 import { DatabaseService } from '../services/DatabaseService';
 import ExportModal from '../components/ExportModal';
 import QRCodePopup from '../components/QRCodePopup';
+import JobBadges from '../components/JobBadges';
 
 const Spacing = {
   xs: 4,
@@ -178,7 +179,12 @@ export default function ProfileScreen() {
         
         <View style={styles.profileInfo}>
           <Text style={styles.profileName}>{getUserProfileFullName(profile)}</Text>
-          <Text style={styles.profileJob}>{profile.jobTitle}</Text>
+          <JobBadges 
+            jobTitles={profile.jobTitles || (profile.jobTitle ? [profile.jobTitle] : [])} 
+            style={styles.profileJobBadges}
+            badgeBackgroundColor="white"
+            badgeTextColor={MyCrewColors.textPrimary}
+          />
           {primaryLocation && (
             <Text style={styles.profileLocation}>
               {primaryLocation.region || primaryLocation.country}
@@ -315,7 +321,7 @@ export default function ProfileScreen() {
           data={JSON.stringify({
             firstName: profile.firstName,
             lastName: profile.lastName,
-            jobTitle: profile.jobTitle,
+            jobTitles: profile.jobTitles || (profile.jobTitle ? [profile.jobTitle] : []),
             phoneNumber: profile.phoneNumber,
             email: profile.email,
             locations: profile.locations
@@ -414,11 +420,8 @@ const styles = StyleSheet.create({
     color: MyCrewColors.background,
     marginBottom: Spacing.xs,
   },
-  profileJob: {
-    fontSize: Typography.subheadline,
-    color: MyCrewColors.background,
+  profileJobBadges: {
     marginBottom: Spacing.xs,
-    opacity: 0.9,
   },
   profileLocation: {
     fontSize: Typography.body,

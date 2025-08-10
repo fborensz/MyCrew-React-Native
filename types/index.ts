@@ -15,7 +15,7 @@ export interface Contact {
   id: string;
   firstName: string;
   lastName: string;
-  jobTitle: string;
+  jobTitles: string[]; // Changed to array, max 3 jobs
   phone: string;
   email: string;
   notes: string;
@@ -25,6 +25,8 @@ export interface Contact {
   city?: string;
   primaryLocation?: WorkLocation;
   secondaryLocations?: WorkLocation[];
+  // Legacy field for migration
+  jobTitle?: string;
 }
 
 export interface Location {
@@ -40,11 +42,13 @@ export interface Location {
 export interface UserProfile {
   firstName: string;
   lastName: string;
-  jobTitle: string;
+  jobTitles: string[]; // Changed to array, max 3 jobs
   phoneNumber: string;
   email: string;
   locations: Location[];
   isFavorite: boolean;
+  // Legacy field for migration
+  jobTitle?: string;
 }
 
 // QR Code data structure
@@ -78,6 +82,7 @@ export interface ContactRow {
   firstName: string;
   lastName: string;
   jobTitle: string;
+  jobTitles?: string | null; // JSON string representation
   phone: string;
   email: string;
   notes: string;
@@ -165,21 +170,25 @@ export type RootStackParamList = {
 export interface ContactFormData {
   firstName: string;
   lastName: string;
-  jobTitle: string;
+  jobTitles: string[]; // Changed to array, max 3 jobs
   phone: string;
   email: string;
   notes: string;
   isFavorite: boolean;
   locations: Omit<WorkLocation, 'id'>[];
+  // Legacy field for forms that still use single job
+  jobTitle?: string;
 }
 
 export interface ContactFormErrors {
   firstName?: string;
   lastName?: string;
-  jobTitle?: string;
+  jobTitles?: string;
   phone?: string;
   email?: string;
   locations?: string;
+  // Legacy field for forms that still use single job
+  jobTitle?: string;
 }
 
 // Search and highlighting

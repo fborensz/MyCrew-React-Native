@@ -64,6 +64,7 @@ export class DatabaseService {
       const tableInfo = await this.db.getAllAsync<any>("PRAGMA table_info(contacts)");
       const hasOldStructure = tableInfo.some((col: any) => col.name === 'name');
       const hasNewStructure = tableInfo.some((col: any) => col.name === 'firstName');
+      const hasJobTitlesColumn = tableInfo.some((col: any) => col.name === 'jobTitles');
 
       if (hasOldStructure && !hasNewStructure) {
         console.log('Migration de la base de données: nom → prénom/nom');
@@ -178,6 +179,28 @@ export class DatabaseService {
 
         console.log('Migration de la base de données terminée avec succès');
       }
+
+      // Ajouter la colonne jobTitles si elle n'existe pas
+      if (!hasJobTitlesColumn) {
+        console.log('Ajout de la colonne jobTitles pour les métiers multiples');
+        await this.db.execAsync('ALTER TABLE contacts ADD COLUMN jobTitles TEXT DEFAULT NULL');
+        
+        // Vérifier et ajouter pour la table user_profile aussi
+        const profileTableExists = await this.db.getFirstAsync<any>(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='user_profile'"
+        );
+        
+        if (profileTableExists) {
+          const userProfileInfo = await this.db.getAllAsync<any>("PRAGMA table_info(user_profile)");
+          const userProfileHasJobTitles = userProfileInfo.some((col: any) => col.name === 'jobTitles');
+          
+          if (!userProfileHasJobTitles) {
+            await this.db.execAsync('ALTER TABLE user_profile ADD COLUMN jobTitles TEXT DEFAULT NULL');
+          }
+        }
+        
+        console.log('Colonnes jobTitles ajoutées avec succès');
+      }
     } catch (error) {
       console.error('Erreur lors de la migration de la base de données:', error);
       // En cas d'erreur de migration, on peut reset la base
@@ -196,6 +219,7 @@ export class DatabaseService {
         firstName TEXT NOT NULL,
         lastName TEXT NOT NULL,
         jobTitle TEXT NOT NULL,
+        jobTitles TEXT DEFAULT NULL,
         phone TEXT NOT NULL,
         email TEXT NOT NULL,
         notes TEXT DEFAULT '',
@@ -227,6 +251,7 @@ export class DatabaseService {
         firstName TEXT NOT NULL DEFAULT '',
         lastName TEXT NOT NULL DEFAULT '',
         jobTitle TEXT NOT NULL DEFAULT '',
+        jobTitles TEXT DEFAULT NULL,
         phoneNumber TEXT NOT NULL DEFAULT '',
         email TEXT NOT NULL DEFAULT '',
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -266,11 +291,14 @@ export class DatabaseService {
 
     await this.db.withTransactionAsync(async () => {
       // Insert contact
+      const jobTitlesJson = contact.jobTitles ? JSON.stringify(contact.jobTitles) : null;
       await this.db!.runAsync(
-        `INSERT INTO contacts (id, firstName, lastName, jobTitle, phone, email, notes, isFavorite, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [contactId, contact.firstName, contact.lastName, contact.jobTitle, contact.phone, contact.email, 
-         contact.notes, contact.isFavorite ? 1 : 0]
+        `INSERT INTO contacts (id, firstName, lastName, jobTitle, jobTitles, phone, email, notes, isFavorite, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [contactId, contact.firstName, contact.lastName, 
+         contact.jobTitles && contact.jobTitles.length > 0 ? contact.jobTitles[0] : '', // Backward compatibility
+         jobTitlesJson, 
+         contact.phone, contact.email, contact.notes, contact.isFavorite ? 1 : 0]
       );
 
       // Insert work locations
@@ -333,12 +361,15 @@ export class DatabaseService {
 
     await this.db.withTransactionAsync(async () => {
       // Update contact
+      const jobTitlesJson = contact.jobTitles ? JSON.stringify(contact.jobTitles) : null;
       await this.db!.runAsync(
         `UPDATE contacts 
-         SET firstName = ?, lastName = ?, jobTitle = ?, phone = ?, email = ?, notes = ?, isFavorite = ?, updatedAt = CURRENT_TIMESTAMP
+         SET firstName = ?, lastName = ?, jobTitle = ?, jobTitles = ?, phone = ?, email = ?, notes = ?, isFavorite = ?, updatedAt = CURRENT_TIMESTAMP
          WHERE id = ?`,
-        [contact.firstName, contact.lastName, contact.jobTitle, contact.phone, contact.email, 
-         contact.notes, contact.isFavorite ? 1 : 0, contactId]
+        [contact.firstName, contact.lastName, 
+         contact.jobTitles && contact.jobTitles.length > 0 ? contact.jobTitles[0] : '', // Backward compatibility
+         jobTitlesJson,
+         contact.phone, contact.email, contact.notes, contact.isFavorite ? 1 : 0, contactId]
       );
 
       // Delete existing work locations
@@ -431,10 +462,24 @@ export class DatabaseService {
       'SELECT * FROM user_profile_locations'
     );
 
+    // Parse jobTitles JSON or fall back to legacy jobTitle
+    let jobTitles: string[] = [];
+    if (profileRow.jobTitles) {
+      try {
+        jobTitles = JSON.parse(profileRow.jobTitles);
+      } catch (error) {
+        console.warn('Failed to parse profile jobTitles JSON:', error);
+        jobTitles = profileRow.jobTitle ? [profileRow.jobTitle] : [];
+      }
+    } else if (profileRow.jobTitle) {
+      jobTitles = [profileRow.jobTitle];
+    }
+
     return {
       firstName: profileRow.firstName || '',
       lastName: profileRow.lastName || '',
-      jobTitle: profileRow.jobTitle,
+      jobTitle: profileRow.jobTitle, // Keep for backward compatibility
+      jobTitles: jobTitles,
       phoneNumber: profileRow.phoneNumber,
       email: profileRow.email,
       isFavorite: false,
@@ -455,10 +500,14 @@ export class DatabaseService {
 
     await this.db.withTransactionAsync(async () => {
       // Upsert user profile
+      const jobTitlesJson = profile.jobTitles ? JSON.stringify(profile.jobTitles) : null;
       await this.db!.runAsync(
-        `INSERT OR REPLACE INTO user_profile (id, firstName, lastName, jobTitle, phoneNumber, email, updatedAt)
-         VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-        [profile.firstName, profile.lastName, profile.jobTitle, profile.phoneNumber, profile.email]
+        `INSERT OR REPLACE INTO user_profile (id, firstName, lastName, jobTitle, jobTitles, phoneNumber, email, updatedAt)
+         VALUES (1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [profile.firstName, profile.lastName, 
+         profile.jobTitles && profile.jobTitles.length > 0 ? profile.jobTitles[0] : '', // Backward compatibility
+         jobTitlesJson,
+         profile.phoneNumber, profile.email]
       );
 
       // Delete existing locations
@@ -493,11 +542,25 @@ export class DatabaseService {
     const primaryLocation = locations.find(loc => loc.isPrimary);
     const secondaryLocations = locations.filter(loc => !loc.isPrimary);
 
+    // Parse jobTitles JSON or fall back to legacy jobTitle
+    let jobTitles: string[] = [];
+    if (contactRow.jobTitles) {
+      try {
+        jobTitles = JSON.parse(contactRow.jobTitles);
+      } catch (error) {
+        console.warn('Failed to parse jobTitles JSON:', error);
+        jobTitles = contactRow.jobTitle ? [contactRow.jobTitle] : [];
+      }
+    } else if (contactRow.jobTitle) {
+      jobTitles = [contactRow.jobTitle];
+    }
+
     return {
       id: contactRow.id,
       firstName: contactRow.firstName,
       lastName: contactRow.lastName,
-      jobTitle: contactRow.jobTitle,
+      jobTitle: contactRow.jobTitle, // Keep for backward compatibility
+      jobTitles: jobTitles,
       phone: contactRow.phone,
       email: contactRow.email,
       notes: contactRow.notes,

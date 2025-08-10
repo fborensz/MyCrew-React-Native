@@ -15,11 +15,12 @@ export const contactValidationSchema = yup.object().shape({
     .min(2, 'Le nom doit contenir au moins 2 caractères')
     .max(50, 'Le nom ne peut pas dépasser 50 caractères'),
   
-  jobTitle: yup
-    .string()
-    .required('Le métier est obligatoire')
-    .min(2, 'Le métier doit contenir au moins 2 caractères')
-    .max(100, 'Le métier ne peut pas dépasser 100 caractères'),
+  jobTitles: yup
+    .array()
+    .of(yup.string().required())
+    .min(1, 'Au moins un métier est obligatoire')
+    .max(3, 'Maximum 3 métiers autorisés')
+    .required('Au moins un métier est obligatoire'),
   
   phone: yup
     .string()
@@ -110,11 +111,12 @@ export const userProfileValidationSchema = yup.object().shape({
     .min(2, 'Le nom doit contenir au moins 2 caractères')
     .max(50, 'Le nom ne peut pas dépasser 50 caractères'),
   
-  jobTitle: yup
-    .string()
-    .required('Le métier est obligatoire')
-    .min(2, 'Le métier doit contenir au moins 2 caractères')
-    .max(100, 'Le métier ne peut pas dépasser 100 caractères'),
+  jobTitles: yup
+    .array()
+    .of(yup.string().required())
+    .min(1, 'Au moins un métier est obligatoire')
+    .max(3, 'Maximum 3 métiers autorisés')
+    .required('Au moins un métier est obligatoire'),
   
   phoneNumber: yup
     .string()

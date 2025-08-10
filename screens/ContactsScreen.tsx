@@ -29,6 +29,7 @@ import { FILM_DEPARTMENTS } from '../data/JobTitles';
 import { COUNTRIES_WITH_REGIONS } from '../data/Locations';
 import ExportModal from '../components/ExportModal';
 import QRCodeDisplay from '../components/QRCodeDisplay';
+import JobBadges from '../components/JobBadges';
 import { ImportService } from '../services/ImportService';
 import { FilterService } from '../services/FilterService';
 
@@ -104,9 +105,11 @@ function ContactRow({ contact, onPress, onQRPress }: ContactRowProps) {
             />
           )}
         </View>
-        <Text style={styles.contactJob} numberOfLines={1}>
-          {contact.jobTitle}
-        </Text>
+        <JobBadges 
+          jobTitles={contact.jobTitles || (contact.jobTitle ? [contact.jobTitle] : [])}
+          maxDisplay={2}
+          style={styles.contactJobBadges}
+        />
         {city && (
           <Text style={styles.contactCity} numberOfLines={1}>
             {city}
@@ -150,15 +153,32 @@ function ProfileCard({ profile, onPress, onQRPress }: ProfileCardProps) {
     );
   }
 
+  const primaryLocation = profile.locations && profile.locations.length > 0 
+    ? profile.locations.find(loc => loc.isPrimary) || profile.locations[0]
+    : null;
+  const locationText = primaryLocation?.region || primaryLocation?.country || '';
+
   return (
-    <TouchableOpacity style={styles.profileCard} onPress={onPress}>
-      <Ionicons name="person" size={32} color={MyCrewColors.background} style={styles.profileIcon} />
-      <View style={styles.profileContent}>
+    <TouchableOpacity style={styles.profileCard} onPress={onQRPress}>
+      <TouchableOpacity onPress={onQRPress} style={styles.profileQRIcon}>
+        <Ionicons name="qr-code" size={36} color={MyCrewColors.background} />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.profileContent} onPress={onPress}>
         <Text style={styles.profileName}>{getUserProfileFullName(profile)}</Text>
-        <Text style={styles.profileJob}>{profile.jobTitle}</Text>
-      </View>
-      <TouchableOpacity style={styles.profileQRButton} onPress={onQRPress}>
-        <Ionicons name="qr-code" size={28} color={MyCrewColors.background} />
+        <View style={styles.profileJobsContainer}>
+          <JobBadges 
+            jobTitles={profile.jobTitles || (profile.jobTitle ? [profile.jobTitle] : [])}
+            maxDisplay={3}
+            style={styles.profileJobBadges}
+            badgeBackgroundColor="white"
+            badgeTextColor={MyCrewColors.textPrimary}
+          />
+        </View>
+        {locationText && (
+          <Text style={styles.profileLocation}>
+            {locationText}
+          </Text>
+        )}
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -1178,30 +1198,40 @@ const styles = StyleSheet.create({
   profileCard: {
     backgroundColor: MyCrewColors.accent,
     marginHorizontal: Spacing.sm,
-    marginVertical: Spacing.xs,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.sm,
+    marginVertical: 2, // 50% de Spacing.xs (4)
+    borderRadius: 24, // Plus d'arrondis (xl * 1.5)
+    padding: Spacing.md,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     ...Shadows.medium,
+    minHeight: 80,
   },
-  profileIcon: {
+  profileQRIcon: {
     marginRight: Spacing.md,
+    padding: Spacing.xs,
+    alignSelf: 'flex-start',
+    marginTop: Spacing.xs,
   },
   profileContent: {
     flex: 1,
   },
   profileName: {
-    fontSize: Typography.title,
+    fontSize: 26, // +30% de Typography.title (20)
     fontWeight: '700',
     color: MyCrewColors.background,
     marginBottom: Spacing.xs,
   },
-  profileJob: {
-    fontSize: Typography.subheadline,
-    color: MyCrewColors.background,
-    opacity: 0.9,
+  profileJobsContainer: {
+    flex: 1,
+  },
+  profileJobBadges: {
+    marginTop: 0,
     marginBottom: Spacing.xs,
+  },
+  profileLocation: {
+    fontSize: Typography.small,
+    color: MyCrewColors.background,
+    opacity: 0.8,
   },
   profileEmpty: {
     fontSize: Typography.subheadline,
@@ -1311,8 +1341,8 @@ const styles = StyleSheet.create({
   
   // Barre de recherche
   searchContainer: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingHorizontal: Spacing.sm,
+    paddingBottom: Spacing.sm,
   },
   searchInputContainer: {
     flexDirection: 'row',
@@ -1368,9 +1398,7 @@ const styles = StyleSheet.create({
   favoriteIcon: {
     marginLeft: Spacing.xs,
   },
-  contactJob: {
-    fontSize: Typography.body,
-    color: MyCrewColors.textSecondary,
+  contactJobBadges: {
     marginBottom: Spacing.xs,
   },
   contactCity: {

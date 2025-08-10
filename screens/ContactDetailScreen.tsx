@@ -11,6 +11,7 @@ import type { RouteProp } from '@react-navigation/native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import QRCodePopup from '../components/QRCodePopup';
+import JobBadges from '../components/JobBadges';
 import { DatabaseService } from '../services/DatabaseService';
 import { MyCrewColors, Spacing, BorderRadius, Shadows } from '../constants/Colors';
 import { Contact, RootStackParamList, getContactFullName } from '../types';
@@ -191,9 +192,10 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
                   />
                 </TouchableOpacity>
               </View>
-              <ThemedText variant="headline" color="textSecondary" style={styles.jobTitle}>
-                {contact.jobTitle}
-              </ThemedText>
+              <JobBadges 
+                jobTitles={contact.jobTitles || (contact.jobTitle ? [contact.jobTitle] : [])} 
+                style={styles.jobBadges}
+              />
             </View>
             
             <View style={styles.actionButtons}>
@@ -364,7 +366,7 @@ export default function ContactDetailScreen({ navigation, route }: ContactDetail
           data={JSON.stringify({
             firstName: contact.firstName,
             lastName: contact.lastName,
-            jobTitle: contact.jobTitle,
+            jobTitles: contact.jobTitles || (contact.jobTitle ? [contact.jobTitle] : []),
             phone: contact.phone,
             email: contact.email,
             locations: contact.locations
@@ -422,8 +424,8 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     padding: 2,
   },
-  jobTitle: {
-    marginTop: 2,
+  jobBadges: {
+    marginTop: 8,
   },
   actionButtons: {
     flexDirection: 'row',

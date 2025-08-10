@@ -69,26 +69,82 @@ export default function EditContactScreen() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [showJobPicker, setShowJobPicker] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [showCountryPicker, setShowCountryPicker] = useState<{show: boolean, locationIndex: number}>({show: false, locationIndex: -1});
   const [showRegionPicker, setShowRegionPicker] = useState<{show: boolean, locationIndex: number}>({show: false, locationIndex: -1});
   const [locations, setLocations] = useState<Omit<WorkLocation, 'id'>[]>([]);
   const [contact, setContact] = useState<Contact | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     setValue,
     reset,
+    watch,
   } = useForm<ContactFormData>({
     resolver: yupResolver(contactValidationSchema),
   });
 
+  // Surveiller les changements du formulaire
+  const watchedValues = watch();
+
   useEffect(() => {
     loadContact();
   }, [contactId]);
+
+  // Surveiller les changements pour marquer le formulaire comme modifié
+  useEffect(() => {
+    if (watchedValues && contact) {
+      setHasUnsavedChanges(isDirty);
+    }
+  }, [watchedValues, isDirty, contact]);
+
+  // Gérer la navigation arrière avec confirmation
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (!hasUnsavedChanges) {
+        return;
+      }
+
+      e.preventDefault();
+
+      Alert.alert(
+        'Modifications non sauvegardées',
+        'Vous avez des modifications non sauvegardées. Voulez-vous les enregistrer avant de quitter ?',
+        [
+          {
+            text: 'Annuler',
+            style: 'cancel',
+            onPress: () => {},
+          },
+          {
+            text: 'Quitter sans sauvegarder',
+            style: 'destructive',
+            onPress: () => {
+              setHasUnsavedChanges(false);
+              navigation.dispatch(e.data.action);
+            },
+          },
+          {
+            text: 'Sauvegarder',
+            onPress: () => {
+              handleSubmit(async (data) => {
+                await onSubmit(data);
+                setHasUnsavedChanges(false);
+                navigation.dispatch(e.data.action);
+              })();
+            },
+          },
+        ]
+      );
+    });
+
+    return unsubscribe;
+  }, [navigation, hasUnsavedChanges, handleSubmit]);
 
   const loadContact = async () => {
     try {
@@ -106,11 +162,15 @@ export default function EditContactScreen() {
           isPrimary: loc.isPrimary,
         })));
         
+        // Handle backward compatibility - convert single jobTitle to array
+        const jobTitles = contactData.jobTitles || (contactData.jobTitle ? [contactData.jobTitle] : []);
+        setSelectedJobs(jobTitles);
+        
         // Reset form with loaded data
         reset({
           firstName: contactData.firstName,
           lastName: contactData.lastName,
-          jobTitle: contactData.jobTitle,
+          jobTitles: jobTitles,
           phone: contactData.phone,
           email: contactData.email,
           notes: contactData.notes,
@@ -147,7 +207,7 @@ export default function EditContactScreen() {
       await db.updateContact(contactId, {
         firstName: data.firstName,
         lastName: data.lastName,
-        jobTitle: data.jobTitle,
+        jobTitles: data.jobTitles,
         phone: data.phone,
         email: data.email,
         notes: data.notes,
@@ -155,6 +215,7 @@ export default function EditContactScreen() {
         locations: data.locations,
       });
       
+      setHasUnsavedChanges(false); // Réinitialiser le flag après sauvegarde
       Alert.alert(
         'Contact modifié',
         `${data.firstName} ${data.lastName} a été mis à jour.`,
@@ -286,7 +347,12 @@ export default function EditContactScreen() {
               key={job}
               style={styles.jobItem}
               onPress={() => {
-                setValue('jobTitle', job);
+                const currentJobs = selectedJobs.length > 0 ? selectedJobs : [];
+                if (!currentJobs.includes(job) && currentJobs.length < 3) {
+                  const newJobs = [...currentJobs, job];
+                  setSelectedJobs(newJobs);
+                  setValue('jobTitles', newJobs);
+                }
                 setShowJobPicker(false);
                 setSelectedDepartment(null);
               }}
@@ -391,20 +457,42 @@ export default function EditContactScreen() {
 
           <View style={[styles.inputGroup, styles.jobInputGroup]}>
             <Text style={styles.label}>
-              Métier *
-              {errors.jobTitle && <Text style={styles.errorText}> - {errors.jobTitle.message}</Text>}
+              Métiers * (max 3)
+              {errors.jobTitles && <Text style={styles.errorText}> - {errors.jobTitles.message}</Text>}
             </Text>
             <TouchableOpacity
-              style={[styles.input, styles.pickerInput, errors.jobTitle && styles.inputError]}
+              style={[styles.input, styles.pickerInput, errors.jobTitles && styles.inputError]}
               onPress={() => setShowJobPicker(true)}
             >
               <Controller
                 control={control}
-                name="jobTitle"
+                name="jobTitles"
                 render={({ field: { value } }) => (
-                  <Text style={[styles.inputText, !value && styles.placeholder]}>
-                    {value || 'Choisir un métier'}
-                  </Text>
+                  <View style={styles.jobsContainer}>
+                    {selectedJobs.length === 0 ? (
+                      <Text style={[styles.inputText, styles.placeholder]}>
+                        Choisir jusqu'à 3 métiers
+                      </Text>
+                    ) : (
+                      <View style={styles.selectedJobsContainer}>
+                        {selectedJobs.map((job, index) => (
+                          <View key={index} style={styles.jobBadge}>
+                            <Text style={styles.jobBadgeText}>{job}</Text>
+                            <TouchableOpacity
+                              onPress={() => {
+                                const newJobs = selectedJobs.filter((_, i) => i !== index);
+                                setSelectedJobs(newJobs);
+                                setValue('jobTitles', newJobs);
+                              }}
+                              style={styles.removeJobButton}
+                            >
+                              <Ionicons name="close" size={14} color="white" />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
                 )}
               />
               <Ionicons name="chevron-forward" size={20} color={MyCrewColors.iconMuted} />
@@ -1048,5 +1136,37 @@ const styles = StyleSheet.create({
   pickerItemText: {
     fontSize: Typography.body,
     color: MyCrewColors.textPrimary,
+  },
+  
+  // Job badges styles
+  jobsContainer: {
+    flex: 1,
+  },
+  selectedJobsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  jobBadge: {
+    backgroundColor: MyCrewColors.accent,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  jobBadgeText: {
+    color: 'white',
+    fontSize: Typography.small,
+    fontWeight: '500',
+  },
+  removeJobButton: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
