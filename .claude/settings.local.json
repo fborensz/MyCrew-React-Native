@@ -6,7 +6,8 @@
       "Bash(npm run lint)",
       "Bash(copy JobTitles.ts JobTitles.backup.ts)",
       "Bash(cp:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
