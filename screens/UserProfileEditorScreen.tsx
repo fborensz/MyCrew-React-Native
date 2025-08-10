@@ -12,6 +12,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useForm, Controller } from 'react-hook-form';
@@ -20,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { MyCrewColors } from '../constants/Colors';
 import { userProfileValidationSchema } from '../utils/validation';
-import { FILM_DEPARTMENTS } from '../data/JobTitles';
+import { JobTitles } from '../data/JobTitles';
 import { COUNTRIES_WITH_REGIONS } from '../data/Locations';
 import { DatabaseService } from '../services/DatabaseService';
 import { UserProfile, Location } from '../types';
@@ -74,6 +75,9 @@ export default function UserProfileEditorScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showJobPicker, setShowJobPicker] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [showCountryPicker, setShowCountryPicker] = useState<{show: boolean, locationIndex: number}>({show: false, locationIndex: -1});
+  const [showRegionPicker, setShowRegionPicker] = useState<{show: boolean, locationIndex: number}>({show: false, locationIndex: -1});
   const [locations, setLocations] = useState<Omit<Location, 'id'>[]>([
     {
       country: 'France',
@@ -144,8 +148,6 @@ export default function UserProfileEditorScreen() {
       setIsLoading(false);
     }
   };
-
-  const allJobs = FILM_DEPARTMENTS.flatMap(dept => dept.jobs);
 
   const onSubmit = async (data: UserProfileFormData) => {
     if (isSubmitting) return;
@@ -245,34 +247,84 @@ export default function UserProfileEditorScreen() {
     setValue('locations', updatedLocations);
   };
 
+  const hasLocationStatus = (location: Omit<Location, 'id'>) => {
+    return location.isLocalResident || location.hasVehicle || location.isHoused;
+  };
+
   const JobPicker = () => {
     if (!showJobPicker) return null;
+
+    if (!selectedDepartment) {
+      // Show department selection
+      return (
+        <View style={styles.jobPickerContainer}>
+          <View style={styles.jobPickerHeader}>
+            <Text style={styles.jobPickerTitle}>Choisir une catégorie</Text>
+            <TouchableOpacity onPress={() => {
+              setShowJobPicker(false);
+              setSelectedDepartment(null);
+            }}>
+              <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.departmentsList}>
+            {Object.keys(JobTitles.departments).sort().filter(d => d !== 'Autres Spécialités')
+              .concat(Object.keys(JobTitles.departments).filter(d => d === 'Autres Spécialités'))
+              .map((department) => (
+              <TouchableOpacity
+                key={department}
+                style={styles.departmentCard}
+                onPress={() => setSelectedDepartment(department)}
+              >
+                <View style={styles.departmentIcon}>
+                  <Ionicons 
+                    name={JobTitles.getIconForDepartment(department) as any} 
+                    size={20} 
+                    color={MyCrewColors.accent} 
+                  />
+                </View>
+                <Text style={styles.departmentName}>{department}</Text>
+                <Ionicons name="chevron-forward" size={20} color={MyCrewColors.iconMuted} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      );
+    }
+
+    // Show jobs for selected department
+    const departmentJobs = JobTitles.getJobsForDepartment(selectedDepartment);
     
     return (
       <View style={styles.jobPickerContainer}>
         <View style={styles.jobPickerHeader}>
-          <Text style={styles.jobPickerTitle}>Choisir un métier</Text>
-          <TouchableOpacity onPress={() => setShowJobPicker(false)}>
+          <TouchableOpacity 
+            onPress={() => setSelectedDepartment(null)}
+            style={styles.backButton}
+          >
+            <Ionicons name="chevron-back" size={24} color={MyCrewColors.accent} />
+          </TouchableOpacity>
+          <Text style={styles.jobPickerTitle}>{selectedDepartment}</Text>
+          <TouchableOpacity onPress={() => {
+            setShowJobPicker(false);
+            setSelectedDepartment(null);
+          }}>
             <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
           </TouchableOpacity>
         </View>
         <ScrollView style={styles.jobsList}>
-          {FILM_DEPARTMENTS.map((dept) => (
-            <View key={dept.name} style={styles.department}>
-              <Text style={styles.departmentTitle}>{dept.name}</Text>
-              {dept.jobs.map((job) => (
-                <TouchableOpacity
-                  key={job}
-                  style={styles.jobItem}
-                  onPress={() => {
-                    setValue('jobTitle', job);
-                    setShowJobPicker(false);
-                  }}
-                >
-                  <Text style={styles.jobText}>{job}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+          {departmentJobs.map((job) => (
+            <TouchableOpacity
+              key={job}
+              style={styles.jobItem}
+              onPress={() => {
+                setValue('jobTitle', job);
+                setShowJobPicker(false);
+                setSelectedDepartment(null);
+              }}
+            >
+              <Text style={styles.jobText}>{job}</Text>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
@@ -361,13 +413,13 @@ export default function UserProfileEditorScreen() {
                   </Text>
                 )}
               />
-              <Ionicons name="chevron-down" size={20} color={MyCrewColors.iconMuted} />
+              <Ionicons name="chevron-forward" size={20} color={MyCrewColors.iconMuted} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
-              Téléphone *
+              Téléphone
               {errors.phoneNumber && <Text style={styles.errorText}> - {errors.phoneNumber.message}</Text>}
             </Text>
             <Controller
@@ -389,7 +441,7 @@ export default function UserProfileEditorScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
-              Email *
+              Email
               {errors.email && <Text style={styles.errorText}> - {errors.email.message}</Text>}
             </Text>
             <Controller
@@ -441,24 +493,33 @@ export default function UserProfileEditorScreen() {
                 <View style={styles.inputRow}>
                   <View style={styles.inputHalf}>
                     <Text style={styles.inputLabel}>Pays</Text>
-                    <TextInput
-                      style={styles.smallInput}
-                      value={location.country}
-                      onChangeText={(text) => updateLocation(index, 'country', text)}
-                      placeholder="France"
-                      placeholderTextColor={MyCrewColors.placeholderText}
-                    />
+                    <TouchableOpacity
+                      style={styles.smallPicker}
+                      onPress={() => setShowCountryPicker({show: true, locationIndex: index})}
+                    >
+                      <Text style={[styles.smallPickerText, !location.country && styles.placeholder]}>
+                        {location.country || 'Choisir un pays'}
+                      </Text>
+                      <Ionicons name="chevron-down" size={16} color={MyCrewColors.iconMuted} />
+                    </TouchableOpacity>
                   </View>
-                  <View style={styles.inputHalf}>
-                    <Text style={styles.inputLabel}>Région</Text>
-                    <TextInput
-                      style={styles.smallInput}
-                      value={location.region}
-                      onChangeText={(text) => updateLocation(index, 'region', text)}
-                      placeholder="Île-de-France"
-                      placeholderTextColor={MyCrewColors.placeholderText}
-                    />
-                  </View>
+                  {location.country === 'France' && (
+                    <View style={styles.inputHalf}>
+                      <Text style={styles.inputLabel}>Région</Text>
+                      <TouchableOpacity
+                        style={styles.smallPicker}
+                        onPress={() => setShowRegionPicker({show: true, locationIndex: index})}
+                      >
+                        <Text style={[
+                          styles.smallPickerText, 
+                          !location.region && styles.placeholder
+                        ]}>
+                          {location.region || 'Choisir une région'}
+                        </Text>
+                        <Ionicons name="chevron-down" size={16} color={MyCrewColors.iconMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
                 
                 <View style={styles.checkboxGroup}>
@@ -498,6 +559,13 @@ export default function UserProfileEditorScreen() {
                     <Text style={styles.checkboxLabel}>Logé sur place</Text>
                   </TouchableOpacity>
                 </View>
+                
+                {/* Message d'erreur si aucun statut n'est sélectionné */}
+                {!hasLocationStatus(location) && (
+                  <Text style={styles.locationStatusError}>
+                    Au moins une option doit être sélectionnée (résidence fiscale, véhicule ou logé)
+                  </Text>
+                )}
               </View>
             </View>
           ))}
@@ -523,6 +591,76 @@ export default function UserProfileEditorScreen() {
       </ScrollView>
       
       <JobPicker />
+      
+      {/* Country Picker Modal */}
+      {showCountryPicker.show && (
+        <View style={styles.pickerContainer}>
+          <View style={styles.pickerHeader}>
+            <Text style={styles.pickerTitle}>Choisir un pays</Text>
+            <TouchableOpacity onPress={() => setShowCountryPicker({show: false, locationIndex: -1})}>
+              <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.pickerList}>
+            {Object.keys(COUNTRIES_WITH_REGIONS).map((country) => (
+              <TouchableOpacity
+                key={country}
+                style={styles.pickerItem}
+                onPress={() => {
+                  const index = showCountryPicker.locationIndex;
+                  // Mettre à jour le pays et vider la région si ce n'est pas la France
+                  let updatedLocations = locations.map((loc, i) =>
+                    i === index ? { 
+                      ...loc, 
+                      country: country,
+                      region: country === 'France' ? loc.region : '' // Vider la région si ce n'est pas la France
+                    } : loc
+                  );
+                  
+                  // S'assurer que le premier lieu reste toujours principal
+                  updatedLocations = updatedLocations.map((loc, i) => ({
+                    ...loc,
+                    isPrimary: i === 0,
+                  }));
+                  
+                  setLocations(updatedLocations);
+                  setValue('locations', updatedLocations);
+                  setShowCountryPicker({show: false, locationIndex: -1});
+                }}
+              >
+                <Text style={styles.pickerItemText}>{country}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Region Picker Modal */}
+      {showRegionPicker.show && showRegionPicker.locationIndex >= 0 && (
+        <View style={styles.pickerContainer}>
+          <View style={styles.pickerHeader}>
+            <Text style={styles.pickerTitle}>Choisir une région</Text>
+            <TouchableOpacity onPress={() => setShowRegionPicker({show: false, locationIndex: -1})}>
+              <Ionicons name="close" size={24} color={MyCrewColors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.pickerList}>
+            {locations[showRegionPicker.locationIndex]?.country && 
+             COUNTRIES_WITH_REGIONS[locations[showRegionPicker.locationIndex].country]?.map((region) => (
+              <TouchableOpacity
+                key={region}
+                style={styles.pickerItem}
+                onPress={() => {
+                  updateLocation(showRegionPicker.locationIndex, 'region', region);
+                  setShowRegionPicker({show: false, locationIndex: -1});
+                }}
+              >
+                <Text style={styles.pickerItemText}>{region}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -678,6 +816,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
     color: MyCrewColors.textPrimary,
   },
+  locationStatusError: {
+    fontSize: Typography.small,
+    color: MyCrewColors.destructive,
+    marginTop: Spacing.xs,
+    fontStyle: 'italic',
+  },
   actionsSection: {
     margin: Spacing.lg,
     gap: Spacing.lg,
@@ -745,6 +889,97 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   jobText: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textPrimary,
+  },
+  
+  // New styles for department selection
+  departmentsList: {
+    flex: 1,
+    padding: Spacing.lg,
+  },
+  departmentCard: {
+    backgroundColor: MyCrewColors.cardBackground,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    ...Shadows.small,
+  },
+  departmentIcon: {
+    width: 36,
+    height: 36,
+    backgroundColor: `${MyCrewColors.accent}15`,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  departmentName: {
+    flex: 1,
+    fontSize: Typography.body,
+    fontWeight: '500',
+    color: MyCrewColors.textPrimary,
+  },
+  backButton: {
+    padding: Spacing.xs,
+  },
+  
+  // Location picker styles
+  smallPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: MyCrewColors.border,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.sm,
+    backgroundColor: MyCrewColors.cardBackground,
+  },
+  smallPickerText: {
+    fontSize: Typography.body,
+    color: MyCrewColors.textPrimary,
+    flex: 1,
+  },
+  disabled: {
+    color: MyCrewColors.iconMuted,
+  },
+  
+  // General picker container
+  pickerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: MyCrewColors.background,
+    zIndex: 1000,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: MyCrewColors.border,
+  },
+  pickerTitle: {
+    fontSize: Typography.headline,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
+  },
+  pickerList: {
+    flex: 1,
+    padding: Spacing.lg,
+  },
+  pickerItem: {
+    backgroundColor: MyCrewColors.cardBackground,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+  },
+  pickerItemText: {
     fontSize: Typography.body,
     color: MyCrewColors.textPrimary,
   },

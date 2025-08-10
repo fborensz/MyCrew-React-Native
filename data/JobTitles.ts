@@ -8,7 +8,7 @@ export class JobTitles {
   static readonly DEFAULT_JOB = "À définir";
   
   static readonly departments: Record<string, string[]> = {
-    "Réalisation": [
+    "Mise en scène": [
       "Réalisateur",
       "1er Assistant Réalisateur",
       "2e Assistant Réalisateur",
@@ -103,17 +103,17 @@ export class JobTitles {
 
   // Department icons mapping (using Expo vector icons)
   static readonly departmentIcons: Record<string, string> = {
-    "Réalisation": "movie-open",
+    "Mise en scène": "film-outline",
     "Image": "camera",
-    "Son": "microphone",
-    "Lumière": "lightbulb-on",
-    "Régie": "clipboard-list",
-    "Décors": "palette",
-    "Costumes": "tshirt-crew",
-    "Maquillage et Coiffure": "face-woman",
+    "Son": "mic",
+    "Lumière": "bulb",
+    "Régie": "construct",
+    "Décors": "build",
+    "Costumes": "shirt",
+    "Maquillage et Coiffure": "color-palette",
     "Production": "briefcase",
-    "Post-Production": "video-edit",
-    "Autres Spécialités": "star-circle"
+    "Post-Production": "laptop",
+    "Autres Spécialités": "ellipsis-horizontal-circle"
   };
 
   // Get all available jobs for interface (excludes DEFAULT_JOB)

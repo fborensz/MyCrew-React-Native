@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { Image, View } from 'react-native';
 
 import { DatabaseService } from './services/DatabaseService';
 import { SampleDataService } from './services/SampleDataService';
@@ -27,6 +28,20 @@ import ImportOptionsScreen from './screens/ImportOptionsScreen';
 import SplashScreen from './screens/SplashScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
+
+// Composant pour le logo dans le header
+const HeaderLogo = () => (
+  <View style={{ alignItems: 'center', marginLeft: 16 }}>
+    <Image 
+      source={require('./assets/images/logo.png')} 
+      style={{ 
+        width: 48, 
+        height: 48, 
+        resizeMode: 'contain' 
+      }} 
+    />
+  </View>
+);
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -93,7 +108,10 @@ export default function App() {
         <Stack.Screen 
           name="AddContact" 
           component={AddContactScreen}
-          options={{ title: 'Nouveau contact' }}
+          options={{ 
+            title: 'Nouveau contact',
+            headerLeft: () => <HeaderLogo />
+          }}
         />
         <Stack.Screen 
           name="EditContact" 
@@ -118,7 +136,10 @@ export default function App() {
         <Stack.Screen 
           name="UserProfileEditor" 
           component={UserProfileEditorScreen}
-          options={{ title: 'Éditer profil' }}
+          options={{ 
+            title: 'Éditer profil',
+            headerLeft: () => <HeaderLogo />
+          }}
         />
         <Stack.Screen 
           name="ExportOptions" 

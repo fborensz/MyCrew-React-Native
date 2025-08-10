@@ -23,7 +23,7 @@ export const contactValidationSchema = yup.object().shape({
   
   phone: yup
     .string()
-    .required('Le téléphone est obligatoire')
+    .nullable()
     .matches(
       /^[\+]?[0-9\s\-\(\)\.]{8,20}$/,
       'Numéro de téléphone invalide'
@@ -31,7 +31,7 @@ export const contactValidationSchema = yup.object().shape({
   
   email: yup
     .string()
-    .required('L\'email est obligatoire')
+    .nullable()
     .email('Adresse email invalide')
     .max(255, 'L\'email ne peut pas dépasser 255 caractères'),
   
@@ -69,7 +69,14 @@ export const contactValidationSchema = yup.object().shape({
         isPrimary: yup
           .boolean()
           .required(),
-      })
+      }).test(
+        'at-least-one-status',
+        'Au moins une option doit être sélectionnée (résidence fiscale, véhicule ou logé)',
+        function(location) {
+          if (!location) return false;
+          return location.isLocalResident || location.hasVehicle || location.isHoused;
+        }
+      )
     )
     .min(1, 'Au moins une localisation est requise')
     .test(
@@ -81,7 +88,14 @@ export const contactValidationSchema = yup.object().shape({
         return primaryCount <= 1;
       }
     ),
-});
+}).test(
+  'phone-or-email-required',
+  'Le téléphone ou l\'email est obligatoire',
+  function(values) {
+    const { phone, email } = values || {};
+    return (phone && phone.trim().length > 0) || (email && email.trim().length > 0);
+  }
+);
 
 export const userProfileValidationSchema = yup.object().shape({
   firstName: yup
@@ -104,7 +118,7 @@ export const userProfileValidationSchema = yup.object().shape({
   
   phoneNumber: yup
     .string()
-    .required('Le téléphone est obligatoire')
+    .nullable()
     .matches(
       /^[\+]?[0-9\s\-\(\)\.]{8,20}$/,
       'Numéro de téléphone invalide'
@@ -112,7 +126,7 @@ export const userProfileValidationSchema = yup.object().shape({
   
   email: yup
     .string()
-    .required('L\'email est obligatoire')
+    .nullable()
     .email('Adresse email invalide')
     .max(255, 'L\'email ne peut pas dépasser 255 caractères'),
   
@@ -126,7 +140,14 @@ export const userProfileValidationSchema = yup.object().shape({
         hasVehicle: yup.boolean().required(),
         isHoused: yup.boolean().required(),
         isPrimary: yup.boolean().required(),
-      })
+      }).test(
+        'at-least-one-status',
+        'Au moins une option doit être sélectionnée (résidence fiscale, véhicule ou logé)',
+        function(location) {
+          if (!location) return false;
+          return location.isLocalResident || location.hasVehicle || location.isHoused;
+        }
+      )
     )
     .min(1, 'Au moins une localisation est requise')
     .test(
@@ -138,7 +159,14 @@ export const userProfileValidationSchema = yup.object().shape({
         return primaryCount <= 1;
       }
     ),
-});
+}).test(
+  'phone-or-email-required',
+  'Le téléphone ou l\'email est obligatoire',
+  function(values) {
+    const { phoneNumber, email } = values || {};
+    return (phoneNumber && phoneNumber.trim().length > 0) || (email && email.trim().length > 0);
+  }
+);
 
 // Validation pour les filtres
 export const filterValidationSchema = yup.object().shape({
