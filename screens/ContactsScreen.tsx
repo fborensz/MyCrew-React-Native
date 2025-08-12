@@ -175,9 +175,12 @@ function ProfileCard({ profile, onPress, onQRPress }: ProfileCardProps) {
           />
         </View>
         {locationText && (
-          <Text style={styles.profileLocation}>
-            {locationText}
-          </Text>
+          <>
+            <View style={{ height: 24, backgroundColor: 'transparent' }} />
+            <Text style={styles.profileLocation}>
+              {locationText}
+            </Text>
+          </>
         )}
       </TouchableOpacity>
     </TouchableOpacity>
@@ -736,7 +739,7 @@ export default function ContactsScreen() {
     hasVehicle: false,
   });
   
-  // Animation pour le bouton paramètres
+  // Animation pour le bouton flottant
   const scrollY = useRef(new Animated.Value(0)).current;
   
   const settingsButtonScale = scrollY.interpolate({
@@ -835,9 +838,6 @@ export default function ContactsScreen() {
     }
   };
 
-  const handleSettingsPress = () => {
-    navigation.navigate('Settings' as never);
-  };
 
   const handleApplyFilters = (filters: typeof activeFilters) => {
     setActiveFilters(filters);
@@ -948,12 +948,6 @@ export default function ContactsScreen() {
             onPress={() => setShowImportMenu(!showImportMenu)}
           >
             <Ionicons name="download-outline" size={22} color={MyCrewColors.accent} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.addContactButton}
-            onPress={() => navigation.navigate('AddContact' as never)}
-          >
-            <Ionicons name="add" size={24} color={MyCrewColors.accent} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1132,7 +1126,7 @@ export default function ContactsScreen() {
         stickySectionHeadersEnabled={true}
       />
 
-      {/* Bouton paramètres flottant */}
+      {/* Bouton ajout contact flottant */}
       <Animated.View style={[
         styles.settingsButton,
         { 
@@ -1142,9 +1136,9 @@ export default function ContactsScreen() {
       ]}>
         <TouchableOpacity
           style={styles.settingsButtonInner}
-          onPress={handleSettingsPress}
+          onPress={() => navigation.navigate('AddContact' as never)}
         >
-          <Ionicons name="settings" size={24} color={MyCrewColors.background} />
+          <Ionicons name="add" size={28} color={MyCrewColors.background} />
         </TouchableOpacity>
       </Animated.View>
 
@@ -1261,11 +1255,12 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.sm,
     marginVertical: 2, // 50% de Spacing.xs (4)
     borderRadius: 24, // Plus d'arrondis (xl * 1.5)
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md, // Réduit le padding vertical
     flexDirection: 'row',
     alignItems: 'flex-start',
     ...Shadows.medium,
-    minHeight: 100,
+    minHeight: 90, // Réduit aussi la hauteur minimale
   },
   profileQRIcon: {
     marginRight: Spacing.md,
@@ -1286,14 +1281,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileJobBadges: {
-    marginTop: 0,
-    marginBottom: Spacing.md,
+    marginTop: -4, // Remonte les badges pour créer plus d'espace en dessous
+    marginBottom: Spacing.xl, // Augmente l'espace après les badges
   },
   profileLocation: {
     fontSize: Typography.small,
-    color: MyCrewColors.background,
+    color: MyCrewColors.background, // Retour au blanc
     opacity: 0.8,
-    marginTop: Spacing.sm,
+    paddingLeft: 2, // Petit décalage pour aligner avec les badges blancs
   },
   profileEmpty: {
     fontSize: Typography.subheadline,
@@ -1479,7 +1474,7 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
   },
   
-  // Bouton paramètres flottant
+  // Bouton ajout contact flottant
   settingsButton: {
     position: 'absolute',
     bottom: Spacing.xl,
