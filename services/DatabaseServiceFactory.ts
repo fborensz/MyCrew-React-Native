@@ -2,6 +2,7 @@
 // Conditionally loads the appropriate database service based on platform
 
 import { Platform } from 'react-native';
+import { AsyncStorageService } from './AsyncStorageService';
 
 // Interface that both services must implement
 export interface IDatabaseService {
@@ -30,12 +31,11 @@ export class DatabaseServiceFactory {
     }
 
     if (Platform.OS === 'web') {
-      // Use mock service for web
-      const { MockDatabaseService } = await import('./MockDatabaseService');
-      this.instance = MockDatabaseService.getInstance();
+      // Use AsyncStorage service for web
+      this.instance = AsyncStorageService.getInstance();
     } else {
       // Use real SQLite service for mobile platforms
-      const { DatabaseService } = await import('./DatabaseService');
+      const { DatabaseService } = require('./DatabaseService');
       this.instance = DatabaseService.getInstance();
     }
 
