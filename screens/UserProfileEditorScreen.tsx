@@ -23,8 +23,9 @@ import { MyCrewColors } from '../constants/Colors';
 import { userProfileValidationSchema } from '../utils/validation';
 import { JobTitles } from '../data/JobTitles';
 import { COUNTRIES_WITH_REGIONS } from '../data/Locations';
-import { DatabaseService } from '../services/DatabaseService';
+import { DatabaseServiceFactory } from '../services/DatabaseServiceFactory';
 import { UserProfile, Location } from '../types';
+import { useProfile } from '../contexts/ProfileContext';
 
 const Spacing = {
   xs: 4,
@@ -74,8 +75,10 @@ interface UserProfileFormData {
 
 export default function UserProfileEditorScreen() {
   const navigation = useNavigation();
+  const { reloadProfile } = useProfile();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasExistingProfile, setHasExistingProfile] = useState(false);
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [showJobPicker, setShowJobPicker] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
@@ -120,10 +123,12 @@ export default function UserProfileEditorScreen() {
   const loadExistingProfile = async () => {
     try {
       setIsLoading(true);
-      const db = DatabaseService.getInstance();
+      const db = await DatabaseServiceFactory.getInstance();
       const profile = await db.getUserProfile();
       
       if (profile) {
+        setHasExistingProfile(true);
+        
         // Remplir le formulaire avec les données existantes
         const processedLocations = profile.locations.map((loc, index) => ({
           country: loc.country,
@@ -148,6 +153,8 @@ export default function UserProfileEditorScreen() {
         });
         
         setLocations(processedLocations);
+      } else {
+        setHasExistingProfile(false);
       }
     } catch (error) {
       console.error('Erreur chargement profil:', error);
@@ -162,7 +169,7 @@ export default function UserProfileEditorScreen() {
     setIsSubmitting(true);
     
     try {
-      const db = DatabaseService.getInstance();
+      const db = await DatabaseServiceFactory.getInstance();
       
       // Créer l'objet UserProfile avec les IDs générés
       const profileData: UserProfile = {
@@ -184,6 +191,9 @@ export default function UserProfileEditorScreen() {
       };
       
       await db.saveUserProfile(profileData);
+      
+      // Recharger le profil dans le contexte pour mettre à jour l'affichage
+      await reloadProfile();
       
       Alert.alert(
         'Profil sauvegardé',
@@ -353,12 +363,46 @@ export default function UserProfileEditorScreen() {
     );
   }
 
+  // Composant de scroll conditionnel pour web vs mobile
+  const ScrollContainer = Platform.OS === 'web' 
+    ? ({ children, style, contentContainerStyle, ...props }: any) => (
+        <div style={{
+          height: 'calc(100vh - 60px)', // Soustraire la hauteur du header
+          overflowY: 'auto',
+          backgroundColor: MyCrewColors.background
+        }}>
+          <div style={{
+            minHeight: 'calc(100vh + 200px)', // Contenu qui dépasse pour forcer le scroll
+            paddingBottom: '200px'
+          }}>
+            {children}
+          </div>
+        </div>
+      )
+    : ScrollView;
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
+      {/* Header avec bouton retour */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={24} color={MyCrewColors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {hasExistingProfile ? 'Modifier le profil' : 'Créer mon profil'}
+        </Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollContainer 
+        style={Platform.OS !== 'web' ? styles.scrollView : undefined} 
+        contentContainerStyle={Platform.OS !== 'web' ? styles.scrollContent : undefined}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Informations personnelles */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informations personnelles</Text>
@@ -621,9 +665,30 @@ export default function UserProfileEditorScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
+
+      </ScrollContainer>
       
       <JobPicker />
+      
+      {/* Bouton fixe en bas pour Web */}
+      {Platform.OS === 'web' && !showJobPicker && !showCountryPicker.show && !showRegionPicker.show && (
+        <View style={styles.fixedButtonContainer}>
+          <TouchableOpacity
+            style={[styles.fixedSubmitButton, isSubmitting && styles.submitButtonDisabled]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <Text style={styles.submitButtonText}>Sauvegarde...</Text>
+            ) : (
+              <>
+                <Ionicons name="save-outline" size={20} color={MyCrewColors.background} />
+                <Text style={styles.submitButtonText}>Sauvegarder le profil</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
       
       {/* Country Picker Modal */}
       {showCountryPicker.show && (
@@ -694,7 +759,7 @@ export default function UserProfileEditorScreen() {
           </ScrollView>
         </View>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -702,6 +767,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: MyCrewColors.background,
+    height: Platform.OS === 'web' ? '100vh' : undefined, // Force la hauteur sur web
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: MyCrewColors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: MyCrewColors.border,
+    zIndex: 10, // Au-dessus du contenu
+  },
+  backButton: {
+    padding: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+  },
+  headerTitle: {
+    fontSize: Typography.headline,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 32, // Même largeur que le bouton retour pour centrer le titre
   },
   centered: {
     flex: 1,
@@ -714,6 +805,12 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    height: Platform.OS === 'web' ? '100%' : undefined, // Force la hauteur du scroll sur web
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: Platform.OS === 'web' ? 200 : 50, // Beaucoup d'espace sur web
+    minHeight: Platform.OS === 'web' ? 'calc(100vh + 300px)' : undefined, // Force le contenu à dépasser la hauteur de l'écran sur web
   },
   section: {
     backgroundColor: MyCrewColors.cardBackground,
@@ -869,6 +966,7 @@ const styles = StyleSheet.create({
   actionsSection: {
     margin: Spacing.lg,
     gap: Spacing.lg,
+    zIndex: 1, // S'assurer que le bouton est au-dessus des autres éléments
   },
   submitButton: {
     backgroundColor: MyCrewColors.accent,
@@ -879,6 +977,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     ...Shadows.small,
+    minHeight: 56, // Hauteur minimale pour une bonne accessibilité
+    marginTop: Platform.OS === 'web' ? Spacing.xl : Spacing.sm,
   },
   submitButtonDisabled: {
     opacity: 0.5,
@@ -887,6 +987,30 @@ const styles = StyleSheet.create({
     color: MyCrewColors.background,
     fontSize: Typography.subheadline,
     fontWeight: '600',
+  },
+  fixedButtonContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: MyCrewColors.background,
+    borderRadius: BorderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 999,
+  },
+  fixedSubmitButton: {
+    backgroundColor: MyCrewColors.accent,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    minHeight: 56,
   },
   jobPickerContainer: {
     position: 'absolute',

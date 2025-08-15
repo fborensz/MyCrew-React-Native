@@ -2,7 +2,7 @@
 // Service pour migrer les contacts et profils existants vers les nouveaux métiers inclusifs
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DatabaseService } from './DatabaseService';
+import { DatabaseServiceFactory } from './DatabaseServiceFactory';
 import { JobMigration } from '../data/JobMigration';
 import { Contact, UserProfile } from '../types';
 
@@ -40,7 +40,7 @@ export class MigrationService {
    * Migre toutes les données (contacts et profil)
    */
   private static async migrateAllData(): Promise<void> {
-    const db = DatabaseService.getInstance();
+    const db = await DatabaseServiceFactory.getInstance();
     
     // Migrer les contacts
     await this.migrateContacts(db);
@@ -165,7 +165,7 @@ export class MigrationService {
     profileNeedsMigration: boolean;
     availableMappings: number;
   }> {
-    const db = DatabaseService.getInstance();
+    const db = await DatabaseServiceFactory.getInstance();
     
     // Analyser les contacts
     const contacts = await db.getAllContacts();

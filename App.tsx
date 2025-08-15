@@ -6,8 +6,9 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Image, View } from 'react-native';
+import { ProfileProvider } from './contexts/ProfileContext';
 
-import { DatabaseService } from './services/DatabaseService';
+import { DatabaseServiceFactory } from './services/DatabaseServiceFactory';
 import { SampleDataService } from './services/SampleDataService';
 import { MigrationService } from './services/MigrationService';
 import { MyCrewColors } from './constants/Colors';
@@ -51,8 +52,7 @@ export default function App() {
     async function initializeApp() {
       try {
         // Initialize database
-        const db = DatabaseService.getInstance();
-        await db.initialize();
+        const db = await DatabaseServiceFactory.getInstance();
         
         // Seed with sample data if needed
         await SampleDataService.seedDatabase();
@@ -78,8 +78,9 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator
+    <ProfileProvider>
+      <NavigationContainer>
+        <Stack.Navigator
         screenOptions={{
           headerStyle: {
             backgroundColor: MyCrewColors.background,
@@ -168,8 +169,9 @@ export default function App() {
           component={SettingsScreen}
           options={{ title: 'Paramètres' }}
         />
-      </Stack.Navigator>
-      <StatusBar style="dark" backgroundColor={MyCrewColors.background} />
-    </NavigationContainer>
+        </Stack.Navigator>
+        <StatusBar style="dark" backgroundColor={MyCrewColors.background} />
+      </NavigationContainer>
+    </ProfileProvider>
   );
 }

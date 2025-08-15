@@ -7,8 +7,13 @@
       "Bash(copy JobTitles.ts JobTitles.backup.ts)",
       "Bash(cp:*)",
       "Bash(rm:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm start)",
+      "Bash(eas build:*)",
+      "Bash(npm run web:*)",
+      "Bash(npx expo start:*)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   }
 }

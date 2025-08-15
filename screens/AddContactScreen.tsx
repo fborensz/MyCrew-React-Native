@@ -23,7 +23,8 @@ import { MyCrewColors } from '../constants/Colors';
 import { contactValidationSchema } from '../utils/validation';
 import { JobTitles } from '../data/JobTitles';
 import { COUNTRIES_WITH_REGIONS } from '../data/Locations';
-import { DatabaseService, WorkLocation } from '../services/DatabaseService';
+import { DatabaseServiceFactory } from '../services/DatabaseServiceFactory';
+import { WorkLocation } from '../services/DatabaseService';
 import { ContactFormData } from '../types';
 
 const Spacing = {
@@ -106,7 +107,7 @@ export default function AddContactScreen() {
     setIsSubmitting(true);
     
     try {
-      const db = DatabaseService.getInstance();
+      const db = await DatabaseServiceFactory.getInstance();
       await db.createContact({
         firstName: data.firstName,
         lastName: data.lastName,
@@ -267,21 +268,46 @@ export default function AddContactScreen() {
     );
   };
 
+  // Composant de scroll conditionnel pour web vs mobile
+  const ScrollContainer = Platform.OS === 'web' 
+    ? ({ children, style, ...props }: any) => (
+        <div style={{
+          height: 'calc(100vh - 60px)', // Soustraire la hauteur du header
+          overflowY: 'auto',
+          backgroundColor: MyCrewColors.background
+        }}>
+          <div style={{
+            minHeight: 'calc(100vh + 200px)', // Contenu qui dépasse pour forcer le scroll
+            paddingBottom: '200px'
+          }}>
+            {children}
+          </div>
+        </div>
+      )
+    : ({ children, style, ...props }: any) => (
+        <ScrollView style={style} {...props}>
+          {children}
+        </ScrollView>
+      );
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Navigation et Favori */}
+    <View style={styles.container}>
+      {/* Header avec bouton retour */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={24} color={MyCrewColors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Nouveau contact</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollContainer style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Section Favori */}
         <View style={styles.topActionsSection}>
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Ionicons name="chevron-back" size={24} color={MyCrewColors.textPrimary} />
-          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
           
           <Controller
             control={control}
@@ -594,7 +620,27 @@ export default function AddContactScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </ScrollContainer>
+      
+      {/* Bouton fixe en bas pour Web */}
+      {Platform.OS === 'web' && !showJobPicker && !showCountryPicker.show && !showRegionPicker.show && (
+        <View style={styles.fixedButtonContainer}>
+          <TouchableOpacity
+            style={[styles.fixedSubmitButton, isSubmitting && styles.submitButtonDisabled]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <Text style={styles.submitButtonText}>Création...</Text>
+            ) : (
+              <>
+                <Ionicons name="person-add" size={20} color={MyCrewColors.background} />
+                <Text style={styles.submitButtonText}>Créer le contact</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
       
       <JobPicker />
       
@@ -660,7 +706,7 @@ export default function AddContactScreen() {
           </ScrollView>
         </View>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -668,6 +714,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: MyCrewColors.background,
+    height: Platform.OS === 'web' ? '100vh' : undefined,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: MyCrewColors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: MyCrewColors.border,
+    zIndex: 10,
+  },
+  headerTitle: {
+    fontSize: Typography.headline,
+    fontWeight: '600',
+    color: MyCrewColors.textPrimary,
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 32,
   },
   topActionsSection: {
     flexDirection: 'row',
@@ -1043,5 +1111,29 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  fixedButtonContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: MyCrewColors.background,
+    borderRadius: BorderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 999,
+  },
+  fixedSubmitButton: {
+    backgroundColor: MyCrewColors.accent,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    minHeight: 56,
   },
 });

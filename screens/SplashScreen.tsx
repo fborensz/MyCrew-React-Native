@@ -2,21 +2,23 @@
 // Initial loading screen with MyCrew branding
 
 import React from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { ThemedText } from '../components/ThemedText';
-import { ThemedView } from '../components/ThemedView';
+import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { MyCrewColors } from '../constants/Colors';
 
 export default function SplashScreen() {
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.content}>
-        <ThemedText variant="largeTitle" weight="bold" color="accent">
+        <Image 
+          source={require('../assets/images/logo.png')} 
+          style={styles.logo}
+        />
+        <Text style={styles.title}>
           MyCrew
-        </ThemedText>
-        <ThemedText variant="subheadline" color="textSecondary" style={styles.subtitle}>
-          Gérez vos contacts cinema
-        </ThemedText>
+        </Text>
+        <Text style={styles.subtitle}>
+          Gérez vos contacts cinéma
+        </Text>
         
         <ActivityIndicator 
           size="large" 
@@ -24,7 +26,7 @@ export default function SplashScreen() {
           style={styles.loader}
         />
       </View>
-    </ThemedView>
+    </View>
   );
 }
 
@@ -33,12 +35,25 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: MyCrewColors.background,
   },
   content: {
     alignItems: 'center',
   },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: MyCrewColors.accent,
+    marginBottom: 8,
+  },
   subtitle: {
-    marginTop: 8,
+    fontSize: 16,
+    color: MyCrewColors.textSecondary,
     marginBottom: 32,
   },
   loader: {

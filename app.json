@@ -2,7 +2,8 @@
   "expo": {
     "name": "MyCrew",
     "slug": "mycrew",
-    "version": "1.0.0",
+    "version": "1.0.1",
+    "owner": "pawmz",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mycrew",
@@ -15,9 +16,12 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.mycrew.app",
+      "buildNumber": "3",
       "infoPlist": {
         "NSCameraUsageDescription": "Cette app utilise la caméra pour scanner des codes QR et partager des contacts.",
-        "NSPhotoLibraryUsageDescription": "Cette app accède à la galerie pour partager des codes QR."
+        "NSPhotoLibraryUsageDescription": "Cette app accède à la galerie pour partager des codes QR.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -27,7 +31,8 @@
       },
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -43,6 +48,11 @@
         }
       ],
       "expo-sqlite"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "909797b1-d9ef-42dd-b9f8-41eb25751fdf"
+      }
+    }
   }
 }

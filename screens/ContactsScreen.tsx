@@ -22,9 +22,10 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { DatabaseService } from '../services/DatabaseService';
+import { DatabaseServiceFactory } from '../services/DatabaseServiceFactory';
 import { MyCrewColors } from '../constants/Colors';
 import { Contact, UserProfile, RootStackParamList, getContactFullName, getUserProfileFullName } from '../types';
+import { useProfile } from '../contexts/ProfileContext';
 import { FILM_DEPARTMENTS } from '../data/JobTitles';
 import { COUNTRIES_WITH_REGIONS } from '../data/Locations';
 import ExportModal from '../components/ExportModal';
@@ -190,11 +191,13 @@ function ProfileCard({ profile, onPress, onQRPress }: ProfileCardProps) {
 interface QRModalProps {
   visible: boolean;
   onClose: () => void;
-  profile: UserProfile | null;
-  contact: Contact | null;
+  modalData: {type: 'contact' | 'profile', data: Contact | UserProfile | null};
 }
 
-function QRModal({ visible, onClose, profile, contact }: QRModalProps) {
+function QRModal({ visible, onClose, modalData }: QRModalProps) {
+  // Ne rien afficher si le modal n'est pas visible ou pas de données
+  if (!visible || !modalData.data) return null;
+  
   return (
     <Modal
       visible={visible}
@@ -210,8 +213,8 @@ function QRModal({ visible, onClose, profile, contact }: QRModalProps) {
           </TouchableOpacity>
           
           <QRCodeDisplay 
-            contact={contact || undefined}
-            profile={profile || undefined}
+            contact={modalData.type === 'contact' ? modalData.data as Contact : undefined}
+            profile={modalData.type === 'profile' ? modalData.data as UserProfile : undefined}
             size={180}
             showTitle={false}
             showDebugInfo={false}
@@ -690,6 +693,7 @@ function FilterModal({ visible, onClose, activeFilters, onApplyFilters, onClearF
 
 export default function ContactsScreen() {
   const navigation = useNavigation();
+  const { profile: contextProfile, hasProfile, reloadProfile } = useProfile();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [searchText, setSearchText] = useState('');
@@ -699,6 +703,7 @@ export default function ContactsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [qrModalData, setQrModalData] = useState<{type: 'contact' | 'profile', data: Contact | UserProfile | null}>({type: 'contact', data: null});
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportData, setExportData] = useState<Contact | UserProfile | Contact[] | null>(null);
@@ -755,14 +760,12 @@ export default function ContactsScreen() {
 
   const loadData = async () => {
     try {
-      const db = DatabaseService.getInstance();
-      const [contactsData, userProfile] = await Promise.all([
-        db.getAllContacts(),
-        db.getUserProfile(),
-      ]);
+      const db = await DatabaseServiceFactory.getInstance();
+      const contactsData = await db.getAllContacts();
       
       setContacts(contactsData);
-      setProfile(userProfile);
+      setProfile(contextProfile);
+      await reloadProfile();
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Erreur', 'Impossible de charger les données');
@@ -782,8 +785,12 @@ export default function ContactsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [])
+    }, [contextProfile])
   );
+
+  useEffect(() => {
+    setProfile(contextProfile);
+  }, [contextProfile]);
 
   // Filtrage et groupement des contacts optimisés
   const contactSections = useMemo(() => {
@@ -817,7 +824,7 @@ export default function ContactsScreen() {
   };
 
   const handleContactQRPress = (contact: Contact) => {
-    setSelectedContact(contact);
+    setQrModalData({type: 'contact', data: contact});
     setShowQRModal(true);
   };
 
@@ -831,7 +838,7 @@ export default function ContactsScreen() {
 
   const handleProfileQRPress = () => {
     if (profile) {
-      setSelectedContact(null); // Reset selected contact
+      setQrModalData({type: 'profile', data: profile});
       setShowQRModal(true);
     } else {
       Alert.alert('Aucun profil', 'Créez d\'abord votre profil pour générer un QR code.');
@@ -1102,55 +1109,59 @@ export default function ContactsScreen() {
         </View>
       </View>
 
-      {/* Encart de profil fixe */}
-      <ProfileCard
-        profile={profile}
-        onPress={handleProfilePress}
-        onQRPress={handleProfileQRPress}
-      />
+      {/* Profil optionnel - suppression de l'obligation */}
+      
+      <View>
+        <ProfileCard
+          profile={profile}
+          onPress={handleProfilePress}
+          onQRPress={handleProfileQRPress}
+        />
 
-      <SectionList
-        sections={contactSections}
-        renderItem={renderContact}
-        renderSectionHeader={renderSectionHeader}
-        keyExtractor={keyExtractor}
-        ListHeaderComponent={ListHeaderComponent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-        stickySectionHeadersEnabled={true}
-      />
+        <SectionList
+          sections={contactSections}
+          renderItem={renderContact}
+          renderSectionHeader={renderSectionHeader}
+          keyExtractor={keyExtractor}
+          ListHeaderComponent={ListHeaderComponent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+          stickySectionHeadersEnabled={true}
+          pointerEvents={'auto'}
+        />
+      </View>
 
       {/* Bouton ajout contact flottant */}
-      <Animated.View style={[
-        styles.settingsButton,
-        { 
-          transform: [{ scale: settingsButtonScale }],
-          opacity: settingsButtonOpacity
-        }
-      ]}>
-        <TouchableOpacity
-          style={styles.settingsButtonInner}
-          onPress={() => navigation.navigate('AddContact' as never)}
-        >
-          <Ionicons name="add" size={28} color={MyCrewColors.background} />
-        </TouchableOpacity>
-      </Animated.View>
+      {true && (
+        <Animated.View style={[
+          styles.settingsButton,
+          { 
+            transform: [{ scale: settingsButtonScale }],
+            opacity: settingsButtonOpacity
+          }
+        ]}>
+          <TouchableOpacity
+            style={styles.settingsButtonInner}
+            onPress={() => navigation.navigate('AddContact' as never)}
+          >
+            <Ionicons name="add" size={28} color={MyCrewColors.background} />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       {/* Modal QR Code */}
       <QRModal
         visible={showQRModal}
         onClose={() => {
           setShowQRModal(false);
-          setSelectedContact(null);
         }}
-        profile={selectedContact ? null : profile}
-        contact={selectedContact}
+        modalData={qrModalData}
       />
 
       {/* Modal Filtres */}
@@ -1812,4 +1823,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: MyCrewColors.background,
   },
+  
+  // Styles nettoyés - profil maintenant optionnel
 });

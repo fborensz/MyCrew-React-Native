@@ -1,12 +1,12 @@
 // MyCrew React Native - Sample Data Service
 // Seeds database with sample contacts for testing
 
-import { DatabaseService } from './DatabaseService';
+import { DatabaseServiceFactory } from './DatabaseServiceFactory';
 import { Contact } from '../types';
 
 export class SampleDataService {
   static async seedDatabase(): Promise<void> {
-    const db = DatabaseService.getInstance();
+    const db = await DatabaseServiceFactory.getInstance();
     
     // Check if we already have contacts
     const contactCount = await db.getContactCount();
